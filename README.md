@@ -27,9 +27,18 @@ Back up a session from the menu (JSON) to move it to another phone or keep a rec
 | `manifest.webmanifest` | Home-screen install, icons, share target |
 | `icons/` | App icons made from the club crest |
 
-## Releasing a change
+## Developing
 
-Edit `index.html`, then bump `VERSION` in `sw.js` (for example `fairtime-v1.2.1`) so installed copies update. Phones pick up the new version the next time the app is opened with signal.
+```bash
+npm install
+npx playwright install chromium
+npm run serve   # http://localhost:8765
+npm test        # Playwright suite, uses a fake Spond file
+```
+
+Edit `index.html`, then bump `VERSION` in `sw.js` (for example `fairtime-v1.3.2`) so installed copies update. Phones pick up the new version the next time the app is opened with signal. If you edited `USER_GUIDE.md`, run `npm run guide` first. `CLAUDE.md` has the full conventions.
+
+Never commit a real Spond export: it contains parents' contact details. `.gitignore` blocks `.xlsx` files apart from the fake test fixture.
 
 ## Privacy
 

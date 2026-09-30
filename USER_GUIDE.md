@@ -59,7 +59,11 @@ Everyone appears on the **Squad** screen, marked as one of:
 | **Late** | Didn't answer, or might be late. They start as "not arrived" and join in when you tap them. |
 | **Out** | Can't make it. Left out of the teams. |
 
-Tap to change anyone's mark. Add a missing player at the bottom.
+Tap to change anyone's mark. The list stays in alphabetical order, so names never jump around when you change them.
+
+Use the **Going**, **Late or unsure** and **Not going** buttons above the list to filter it. Tap one to show only those players, or tap more than one to combine them (for example Going and Late together). The numbers on the buttons update as you change marks. Tap **Show all** to clear the filter.
+
+Add a missing player at the bottom.
 
 ---
 

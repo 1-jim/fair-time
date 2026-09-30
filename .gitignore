@@ -1,0 +1,7 @@
+node_modules/
+test-results/
+playwright-report/
+*.log
+# Never commit real Spond exports: they contain parents' contact details
+*.xlsx
+!tests/fixtures/spond-sample.xlsx
