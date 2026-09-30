@@ -1,0 +1,14 @@
+{
+  "name": "fair-time",
+  "private": true,
+  "description": "Fair game-time rotation for age-grade rugby match days",
+  "scripts": {
+    "serve": "http-server -p 8765 -c-1 .",
+    "test": "playwright test",
+    "guide": "python build_guide.py"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "http-server": "^14.1.1"
+  }
+}

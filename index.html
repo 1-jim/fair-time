@@ -325,10 +325,48 @@
       /* Squad list */
       .counts {
         display: flex;
-        gap: 14px;
+        gap: 8px;
         flex-wrap: wrap;
+        margin: 14px 0 6px;
+      }
+      .fchip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 14px;
+        border-radius: 22px;
+        border: 2px solid var(--line);
+        background: var(--surface);
         font: 600 18px var(--cond);
-        margin: 12px 0 4px;
+        color: var(--ink);
+      }
+      .fchip b {
+        font-variant-numeric: tabular-nums;
+      }
+      .fchip.going[aria-pressed="true"] {
+        border-color: var(--field);
+        background: var(--field);
+        color: #fff;
+      }
+      .fchip.maybe[aria-pressed="true"] {
+        border-color: var(--next);
+        background: var(--next);
+        color: #1b1400;
+      }
+      .fchip.no[aria-pressed="true"] {
+        border-color: var(--out);
+        background: var(--out);
+        color: #fff;
+      }
+      .fchip.clear {
+        border-style: dashed;
+        color: var(--muted);
+      }
+      .fnote {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0 0 4px;
       }
       .sq-row {
         display: flex;
@@ -1035,7 +1073,7 @@
         } catch (e) {}
       }
       let S = load() || fresh();
-      const UI = { sheet: null, modal: null, simCache: {}, strat: null };
+      const UI = { sheet: null, modal: null, simCache: {}, strat: null, squadFilter: [], squadKeep: [] };
       let DL = null;
       if (window.claude && typeof window.claude.use === "function") {
         window.claude
@@ -1794,11 +1832,16 @@
         if (!ids.length) {
           h += `<p class="muted">No players yet. Import the Spond file for the event, or paste a list of names.</p>`;
         } else {
-          h += `<div class="counts"><span>Going ${c.going}</span><span>Late or unsure ${c.maybe}</span><span class="muted">Not going ${c.no}</span></div>`;
-          const order = ids.slice().sort((a, b) => {
-            const r = { going: 0, maybe: 1, no: 2 };
-            return r[S.players[a].resp] - r[S.players[b].resp] || nm(a).localeCompare(nm(b));
-          });
+          const F = UI.squadFilter;
+          const fc = (r, l) =>
+            `<button class="fchip ${r}" data-a="squadFilter" data-r="${r}" aria-pressed="${F.includes(r)}">${l} <b>${c[r]}</b></button>`;
+          h += `<div class="counts" role="group" aria-label="Filter the list">${fc("going", "Going")}${fc("maybe", "Late or unsure")}${fc("no", "Not going")}${
+            F.length ? `<button class="fchip clear" data-a="squadFilter" data-r="">Show all ${ids.length}</button>` : ""
+          }</div>`;
+          const order = ids
+            .filter((id) => !F.length || F.includes(S.players[id].resp) || UI.squadKeep.includes(id))
+            .sort((a, b) => nm(a).localeCompare(nm(b)));
+          h += `<p class="fnote">${F.length ? `Showing ${order.length} of ${ids.length}. Tap filters to combine them.` : "Tap a filter to show only those players. Tap more than one to combine."}</p>`;
           h += order
             .map((id) => {
               const p = S.players[id];
@@ -2216,7 +2259,13 @@
         closeModal: () => {
           UI.modal = null;
         },
+        squadFilter: (d) => {
+          const F = UI.squadFilter;
+          UI.squadFilter = !d.r ? [] : F.includes(d.r) ? F.filter((x) => x !== d.r) : F.concat(d.r);
+          UI.squadKeep = [];
+        },
         resp: (d) => {
+          if (!UI.squadKeep.includes(d.p)) UI.squadKeep.push(d.p);
           S.players[d.p].resp = d.r;
           S.teams = [];
         },

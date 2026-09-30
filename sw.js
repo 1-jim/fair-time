@@ -1,5 +1,5 @@
 // Bump VERSION on every release so phones pick up the new app shell.
-const VERSION = "fairtime-v1.3.0";
+const VERSION = "fairtime-v1.3.2";
 const SHARE = "fairtime-share";
 const SHELL = [
   "./",
@@ -53,16 +53,20 @@ self.addEventListener("fetch", (event) => {
   }
   if (req.method !== "GET") return;
 
-  // App pages: network first so updates arrive, cache when offline on the pitch
+  // App pages: network first so updates arrive, cache when offline on the pitch.
+  // Each page is cached under its own path, so opening the guide never replaces the app.
   if (req.mode === "navigate" && url.href.startsWith(scope)) {
+    const page = url.origin + url.pathname;
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put("./index.html", copy));
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(VERSION).then((c) => c.put(page, copy));
+          }
           return res;
         })
-        .catch(() => caches.match("./index.html").then((r) => r || caches.match("./"))),
+        .catch(async () => (await caches.match(page)) || (await caches.match("./index.html")) || caches.match("./")),
     );
     return;
   }
