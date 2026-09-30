@@ -1,0 +1,2653 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Fair Time - Wimborne RFC</title>
+    <meta name="theme-color" content="#17613A" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Fair Time" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --pitch: #17613a;
+        --pitch-deep: #0f4a2b;
+        --bg: #f3f6f4;
+        --surface: #ffffff;
+        --ink: #0f2016;
+        --muted: #56665c;
+        --line: #d3dcd6;
+        --field: #1f8a4c;
+        --field-t: #e2f2e8;
+        --bench: #1d62c9;
+        --bench-t: #e3ecfa;
+        --next: #c98a00;
+        --next-t: #fff1cc;
+        --off: #c9311f;
+        --off-t: #fbe1dd;
+        --out: #7b8680;
+        --out-t: #eceeed;
+        --font: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --cond: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+        color-scheme: light;
+        box-sizing: border-box;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #0c1711;
+          --surface: #13231a;
+          --ink: #e7f0ea;
+          --muted: #9db0a4;
+          --line: #27402f;
+          --field: #3db36e;
+          --field-t: #153525;
+          --bench: #5b95f0;
+          --bench-t: #172a48;
+          --next: #f2b01e;
+          --next-t: #3b2f0f;
+          --off: #f0604f;
+          --off-t: #441a18;
+          --out-t: #1d2922;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #0c1711;
+        --surface: #13231a;
+        --ink: #e7f0ea;
+        --muted: #9db0a4;
+        --line: #27402f;
+        --field: #3db36e;
+        --field-t: #153525;
+        --bench: #5b95f0;
+        --bench-t: #172a48;
+        --next: #f2b01e;
+        --next-t: #3b2f0f;
+        --off: #f0604f;
+        --off-t: #441a18;
+        --out-t: #1d2922;
+        color-scheme: dark;
+      }
+      html {
+        scroll-padding-top: env(safe-area-inset-top, 0px);
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 16px/1.45 var(--font);
+        -webkit-tap-highlight-color: transparent;
+      }
+      button,
+      input,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        cursor: default;
+        opacity: 0.45;
+      }
+      :focus-visible {
+        outline: 3px solid var(--next);
+        outline-offset: 2px;
+      }
+
+      /* Header */
+      .top {
+        position: sticky;
+        top: env(safe-area-inset-top, 0px);
+        z-index: 10;
+        background: var(--pitch);
+        color: #fff;
+        box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.85);
+      }
+      .top .in {
+        max-width: 760px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px 2px;
+      }
+      .brand {
+        font: 700 24px/1 var(--cond);
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .brand img {
+        height: 44px;
+        width: auto;
+        filter: brightness(0) invert(1);
+      }
+      .crest {
+        display: block;
+        width: min(62vw, 260px);
+        height: auto;
+        margin: 6px auto 14px;
+      }
+      .crest.sm {
+        width: min(40vw, 150px);
+        margin: 0 0 8px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) .crest {
+          filter: invert(1);
+        }
+      }
+      :root[data-theme="dark"] .crest {
+        filter: invert(1);
+      }
+      .brand small {
+        font-weight: 500;
+        font-size: 17px;
+        opacity: 0.75;
+        margin-left: 6px;
+      }
+      .ib {
+        background: none;
+        border: 0;
+        color: #fff;
+        font: 700 26px/1 var(--cond);
+        min-width: 44px;
+        min-height: 44px;
+      }
+      nav.tabs {
+        max-width: 760px;
+        margin: 0 auto;
+        display: flex;
+        padding: 0 6px;
+      }
+      nav.tabs button {
+        flex: 1;
+        background: none;
+        border: 0;
+        color: #fff;
+        opacity: 0.72;
+        font: 600 18px var(--cond);
+        padding: 8px 4px 11px;
+        border-bottom: 4px solid transparent;
+      }
+      nav.tabs button[aria-current] {
+        opacity: 1;
+        border-color: #fff;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 16px 14px 120px;
+      }
+      h2 {
+        font: 700 30px/1.1 var(--cond);
+        margin: 4px 0 4px;
+      }
+      h3 {
+        font: 600 21px/1.2 var(--cond);
+        margin: 22px 0 8px;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+      h3 .n {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      p {
+        margin: 0 0 10px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .small {
+        font-size: 14px;
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 48px;
+        padding: 0 18px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font: 600 19px/1 var(--cond);
+        text-decoration: none;
+      }
+      .btn.primary {
+        background: var(--pitch);
+        border-color: var(--pitch);
+        color: #fff;
+      }
+      .btn.go {
+        background: var(--field);
+        border-color: var(--field);
+        color: #fff;
+      }
+      .btn.warn {
+        background: var(--off);
+        border-color: var(--off);
+        color: #fff;
+      }
+      .btn.big {
+        min-height: 62px;
+        font-size: 26px;
+        width: 100%;
+      }
+      .btn.chalk {
+        background: #fff;
+        border-color: #fff;
+        color: var(--pitch-deep);
+      }
+      .btn.ghost {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.4);
+        color: #fff;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .row > .btn {
+        flex: 1 1 0;
+      }
+      .file {
+        position: relative;
+        overflow: hidden;
+      }
+      .file input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      /* Cards and panels */
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 14px;
+      }
+      .note {
+        border-left: 6px solid var(--next);
+        background: var(--next-t);
+        padding: 10px 12px;
+        border-radius: 8px;
+        margin: 10px 0;
+      }
+      .note.bad {
+        border-color: var(--off);
+        background: var(--off-t);
+      }
+      .note.ok {
+        border-color: var(--field);
+        background: var(--field-t);
+      }
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      details ol {
+        margin: 8px 0 0;
+        padding-left: 22px;
+      }
+
+      /* Squad list */
+      .counts {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        font: 600 18px var(--cond);
+        margin: 12px 0 4px;
+      }
+      .sq-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .sq-row .nm {
+        flex: 1;
+        font: 600 19px var(--cond);
+      }
+      .seg {
+        display: inline-flex;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .seg button {
+        border: 0;
+        background: var(--surface);
+        padding: 0 10px;
+        min-height: 40px;
+        font: 600 16px var(--cond);
+        color: var(--muted);
+      }
+      .seg button[aria-pressed="true"].going {
+        background: var(--field);
+        color: #fff;
+      }
+      .seg button[aria-pressed="true"].maybe {
+        background: var(--next);
+        color: #1b1400;
+      }
+      .seg button[aria-pressed="true"].no {
+        background: var(--out);
+        color: #fff;
+      }
+      .x {
+        border: 0;
+        background: none;
+        color: var(--muted);
+        min-width: 36px;
+        min-height: 40px;
+        font-size: 20px;
+      }
+      .add {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .add input,
+      textarea,
+      .inp {
+        flex: 1;
+        min-height: 48px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 12px;
+        background: var(--surface);
+      }
+      textarea {
+        width: 100%;
+        min-height: 180px;
+      }
+
+      /* Steppers */
+      .stp {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .stp .ctl {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .stp b {
+        font: 700 24px var(--cond);
+        min-width: 44px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .sq {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font: 700 22px/1 var(--cond);
+      }
+      .switch {
+        width: 58px;
+        height: 34px;
+        border-radius: 17px;
+        border: 0;
+        background: var(--line);
+        position: relative;
+      }
+      .switch::after {
+        content: "";
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #fff;
+        transition: left 0.15s;
+      }
+      .switch[aria-pressed="true"] {
+        background: var(--field);
+      }
+      .switch[aria-pressed="true"]::after {
+        left: 28px;
+      }
+
+      /* Tables */
+      .tbl {
+        overflow-x: auto;
+        margin: 8px 0;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        padding: 9px 8px;
+        border-bottom: 1px solid var(--line);
+        text-align: right;
+        white-space: nowrap;
+      }
+      th {
+        font: 600 15px var(--cond);
+        color: var(--muted);
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      tr.pick {
+        cursor: pointer;
+      }
+      tr.sel td {
+        background: var(--field-t);
+        font-weight: 600;
+      }
+      .rec {
+        display: inline-block;
+        margin-left: 6px;
+        font: 600 13px var(--cond);
+        background: var(--pitch);
+        color: #fff;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      td.hi {
+        color: var(--off);
+        font-weight: 600;
+      }
+      td.lo {
+        color: var(--bench);
+        font-weight: 600;
+      }
+
+      /* Teams */
+      .teams {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      .team {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: var(--surface);
+      }
+      .team .inp {
+        width: 100%;
+        font: 700 22px var(--cond);
+        margin-bottom: 6px;
+      }
+      .mini {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .mini button {
+        border: 1px solid var(--line);
+        background: var(--bg);
+        border-radius: 6px;
+        padding: 6px 9px;
+        font: 600 16px var(--cond);
+      }
+      .mini button.maybe {
+        border-color: var(--next);
+        background: var(--next-t);
+      }
+
+      /* Scoreboard */
+      .tt {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .tt button {
+        flex: 1;
+        min-height: 46px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font: 600 19px var(--cond);
+        position: relative;
+      }
+      .tt button[aria-current] {
+        background: var(--ink);
+        color: var(--bg);
+        border-color: var(--ink);
+      }
+      .dot {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--off);
+        animation: pulse 1s infinite;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.25;
+        }
+      }
+      .board {
+        position: relative;
+        overflow: hidden;
+        background-color: var(--pitch);
+        background-image:
+          linear-gradient(90deg, transparent calc(50% - 1px), rgba(255, 255, 255, 0.16) calc(50% - 1px), rgba(255, 255, 255, 0.16) calc(50% + 1px), transparent calc(50% + 1px)),
+          repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.13) 0 10px, transparent 10px 20px);
+        background-size: 100% 100%, 2px 100%;
+        background-position: 0 0, 30% 0;
+        background-repeat: no-repeat;
+        color: #fff;
+        border-radius: 12px;
+        padding: 14px 16px 16px;
+      }
+      .board .stage {
+        font: 600 19px var(--cond);
+        opacity: 0.92;
+      }
+      .clock {
+        font: 700 clamp(76px, 23vw, 124px)/0.92 var(--cond);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -1px;
+        margin: 4px 0 2px;
+      }
+      .clock small {
+        display: block;
+        font-size: 18px;
+        font-weight: 600;
+        opacity: 0.75;
+        letter-spacing: 0;
+        margin-top: 4px;
+      }
+      .due {
+        font: 600 21px/1.2 var(--cond);
+      }
+      .due b {
+        font-variant-numeric: tabular-nums;
+      }
+      .board .row {
+        margin-top: 14px;
+      }
+      .board.alert {
+        background-color: #8f2317;
+      }
+
+      /* Chips */
+      .chips {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 8px;
+      }
+      .chip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 54px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        border-left: 9px solid var(--c, var(--line));
+        background: var(--surface);
+        text-align: left;
+        color: var(--ink);
+      }
+      .chip .nm {
+        font: 600 20px/1.1 var(--cond);
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .chip.slim {
+        padding: 8px 10px;
+        min-width: 0;
+      }
+      .chip.slim .tag,
+      .chip.slim .t small {
+        display: none;
+      }
+      .btn {
+        white-space: nowrap;
+      }
+      .board .btn {
+        padding: 0 10px;
+      }
+      .chip .tag {
+        font: 600 13px/1 var(--cond);
+        padding: 3px 6px;
+        border-radius: 4px;
+        background: var(--c);
+        color: #fff;
+        white-space: nowrap;
+      }
+      .chip .t {
+        margin-left: auto;
+        text-align: right;
+        font: 600 18px/1.05 var(--cond);
+        font-variant-numeric: tabular-nums;
+      }
+      .chip .t small {
+        display: block;
+        font-weight: 500;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .chip.field {
+        --c: var(--field);
+      }
+      .chip.bench {
+        --c: var(--bench);
+        background: var(--bench-t);
+      }
+      .chip.next {
+        --c: var(--next);
+        background: var(--next-t);
+      }
+      .chip.next .tag {
+        color: #1b1400;
+      }
+      .chip.off {
+        --c: var(--off);
+        background: var(--off-t);
+      }
+      .chip.out {
+        --c: var(--out);
+        background: var(--out-t);
+        color: var(--muted);
+      }
+      .swaps {
+        display: grid;
+        gap: 6px;
+      }
+      .swap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+        align-items: center;
+        gap: 2px;
+      }
+      .swap .arr {
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 18px;
+      }
+      .legend i {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        margin-right: 5px;
+        vertical-align: -1px;
+      }
+
+      /* Bottom bar */
+      .bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 20;
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+        padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+      }
+      .bar .row {
+        max-width: 760px;
+        margin: 0 auto;
+        flex-wrap: nowrap;
+      }
+      .bar .btn {
+        padding: 0 8px;
+        min-width: 0;
+      }
+
+      /* Sub call overlay */
+      .call {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+        padding-top: env(safe-area-inset-top, 0px);
+      }
+      .call-h {
+        background: var(--off);
+        color: #fff;
+        padding: 18px 18px 14px;
+      }
+      .call.break .call-h {
+        background: var(--pitch);
+      }
+      .call.plan .call-h {
+        animation: flash 0.8s steps(1) 8;
+      }
+      @keyframes flash {
+        50% {
+          background: #7d1a10;
+        }
+      }
+      .call-t {
+        font: 700 clamp(44px, 12vw, 70px)/0.95 var(--cond);
+      }
+      .call-s {
+        font: 600 20px var(--cond);
+        opacity: 0.9;
+        margin-top: 6px;
+      }
+      .call-k {
+        display: grid;
+        grid-template-columns: 1fr 36px 1fr;
+        padding: 12px 14px 4px;
+        font: 600 17px var(--cond);
+        color: var(--muted);
+      }
+      .pairs {
+        flex: 1;
+        overflow: auto;
+        padding: 4px 14px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .pair {
+        display: grid;
+        grid-template-columns: 1fr 36px 1fr;
+        align-items: stretch;
+        border: 0;
+        padding: 0;
+        background: none;
+        text-align: left;
+        font: 700 clamp(24px, 7vw, 34px)/1.05 var(--cond);
+      }
+      .pair .po,
+      .pair .pi {
+        padding: 14px 12px;
+        border-radius: 8px;
+        overflow-wrap: anywhere;
+      }
+      .pair .po {
+        background: var(--off-t);
+        border-left: 10px solid var(--off);
+      }
+      .pair .pi {
+        background: var(--next-t);
+        border-left: 10px solid var(--next);
+      }
+      .pair .arr {
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+      }
+      .pair.skip {
+        opacity: 0.38;
+      }
+      .pair.skip .po,
+      .pair.skip .pi {
+        text-decoration: line-through;
+      }
+      .pair i {
+        font-weight: 500;
+        font-style: normal;
+        color: var(--muted);
+      }
+      .call-f {
+        padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+        display: grid;
+        gap: 8px;
+        border-top: 1px solid var(--line);
+        background: var(--surface);
+      }
+      .hint {
+        text-align: center;
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 4px;
+      }
+
+      /* Sheets and modals */
+      .scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        background: rgba(5, 14, 9, 0.55);
+      }
+      .sheet {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 41;
+        max-width: 760px;
+        margin: 0 auto;
+        max-height: 86vh;
+        overflow: auto;
+        background: var(--surface);
+        border-radius: 16px 16px 0 0;
+        padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+      }
+      .sheet h2 {
+        margin-bottom: 2px;
+      }
+      .opts {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .opts .btn {
+        justify-content: flex-start;
+        width: 100%;
+      }
+      .grp {
+        font: 600 15px var(--cond);
+        color: var(--muted);
+        margin: 14px 0 0;
+      }
+
+      /* Summary */
+      .lines {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0;
+        display: grid;
+        gap: 6px;
+      }
+      .lines li {
+        border-left: 6px solid var(--line);
+        padding: 6px 10px;
+        background: var(--surface);
+        border-radius: 6px;
+      }
+      .lines li.inj,
+      .lines li.conc {
+        border-color: var(--off);
+      }
+      .lines li.over,
+      .lines li.under,
+      .lines li.late {
+        border-color: var(--next);
+      }
+      .lines li.ok {
+        border-color: var(--field);
+      }
+
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%) translateY(20px);
+        z-index: 90;
+        background: var(--ink);
+        color: var(--bg);
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        max-width: 92vw;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.2s,
+          transform 0.2s;
+      }
+      #toast.on {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top" id="top"></header>
+    <main id="app"></main>
+    <div id="layer"></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      "use strict";
+      const MIN = 60000;
+      const KEY = "wimborne-fairtime-v1";
+      const $ = (s) => document.querySelector(s);
+      const uid = () => Math.random().toString(36).slice(2, 10);
+      const clone = (o) => JSON.parse(JSON.stringify(o));
+      const esc = (s) =>
+        String(s ?? "").replace(
+          /[&<>"']/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+        );
+      const fmt = (ms) => {
+        const s = Math.max(0, Math.round(ms / 1000));
+        return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+      };
+      const fmtS = (ms) => (Math.abs(ms) < 5000 ? "±0:00" : (ms < 0 ? "-" : "+") + fmt(Math.abs(ms)));
+      const joinList = (a) =>
+        a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+      const LOGO = "data:image/webp;base64,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";
+      const ARROW =
+        '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const ST_LABEL = {
+        field: "On the pitch",
+        bench: "On the bench",
+        injured: "Injured",
+        concussed: "Concussion: out for the day",
+        absent: "Gone home",
+        late: "Not arrived yet",
+        lent: "Playing for the opposition",
+      };
+
+      /* ---------- State ---------- */
+      function fresh() {
+        return {
+          v: 1,
+          id: uid(),
+          created: Date.now(),
+          eventName: "",
+          eventDate: "",
+          params: {
+            teams: 2,
+            onField: 9,
+            gameMins: 16,
+            games: 3,
+            halves: 2,
+            k: 4,
+            interval: 4,
+            breakReshuffle: true,
+            outlier: 1,
+          },
+          players: {},
+          order: [],
+          teams: [],
+          T: {},
+          started: false,
+          view: "squad",
+          active: 0,
+          sound: true,
+          theme: "",
+        };
+      }
+      function load() {
+        try {
+          const r = localStorage.getItem(KEY);
+          const o = r ? JSON.parse(r) : null;
+          return o && o.v === 1 ? o : null;
+        } catch (e) {
+          return null;
+        }
+      }
+      function save() {
+        try {
+          localStorage.setItem(KEY, JSON.stringify(S));
+        } catch (e) {}
+      }
+      let S = load() || fresh();
+      const UI = { sheet: null, modal: null, simCache: {}, strat: null };
+      let DL = null;
+      if (window.claude && typeof window.claude.use === "function") {
+        window.claude
+          .use("downloads")
+          .then((d) => (DL = d))
+          .catch(() => {});
+      }
+
+      /* ---------- Engine ---------- */
+      const nm = (pid) => (S.players[pid] ? S.players[pid].name : pid);
+      const H = () => (S.params.gameMins * MIN) / S.params.halves;
+      function clock(t) {
+        if (t.sim != null) return t.sim;
+        return t.acc + (t.res ? Date.now() - t.res : 0);
+      }
+      const sess = (t) => t.base + clock(t);
+      const dd = (t, pid) => Math.round((t.ps[pid].ent - t.ps[pid].on) / 5000);
+      function newPS(st) {
+        const g = S.params.games;
+        return {
+          st,
+          on: 0,
+          bench: 0,
+          ent: 0,
+          gOn: Array(g).fill(0),
+          since: 0,
+          maxStint: 0,
+          maxBench: 0,
+          started: Array(g).fill(false),
+        };
+      }
+      function settle(t) {
+        if (t.stage === "done") return;
+        const c = clock(t);
+        const dt = c - t.last;
+        if (dt <= 0) return;
+        t.last = c;
+        const P = Object.values(t.ps);
+        const playing = P.filter((p) => p.st === "field" || p.st === "lent");
+        const av = P.filter((p) => p.st === "field" || p.st === "bench" || p.st === "lent");
+        if (av.length) {
+          const share = (dt * playing.length) / av.length;
+          av.forEach((p) => (p.ent += share));
+        }
+        playing.forEach((p) => {
+          p.on += dt;
+          p.gOn[t.g] = (p.gOn[t.g] || 0) + dt;
+        });
+        P.forEach((p) => {
+          if (p.st === "bench") p.bench += dt;
+        });
+      }
+      function setSt(t, pid, st) {
+        settle(t);
+        const p = t.ps[pid];
+        const now = sess(t);
+        if (p.st === "field") p.maxStint = Math.max(p.maxStint, now - p.since);
+        if (p.st === "bench") p.maxBench = Math.max(p.maxBench, now - p.since);
+        p.st = st;
+        p.since = now;
+      }
+      function logEv(t, type, o) {
+        if (t.sim != null) return;
+        t.log.push(Object.assign({ g: t.g, ms: clock(t), stage: t.stage, type }, o));
+      }
+      function lists(t) {
+        const ids = Object.keys(t.ps);
+        const F = ids.filter((i) => t.ps[i].st === "field");
+        const B = ids.filter((i) => t.ps[i].st === "bench");
+        F.sort(
+          (a, b) =>
+            dd(t, a) - dd(t, b) || t.ps[a].since - t.ps[b].since || nm(a).localeCompare(nm(b)),
+        );
+        B.sort(
+          (a, b) =>
+            dd(t, b) - dd(t, a) || t.ps[a].since - t.ps[b].since || nm(a).localeCompare(nm(b)),
+        );
+        const O = ids
+          .filter((i) => !["field", "bench"].includes(t.ps[i].st))
+          .sort((a, b) => nm(a).localeCompare(nm(b)));
+        return { F, B, O };
+      }
+      function planPairs(t, k) {
+        const { F, B } = lists(t);
+        const n = Math.min(k, F.length, B.length);
+        const out = [];
+        for (let j = 0; j < n; j++) {
+          out.push({ off: F[j], on: B[j], ben: dd(t, B[j]) > dd(t, F[j]) });
+        }
+        return out;
+      }
+      function breakPairs(t) {
+        const { F, B } = lists(t);
+        const inF = new Set(F);
+        const pool = [...F, ...B].sort(
+          (a, b) =>
+            dd(t, b) - dd(t, a) ||
+            (inF.has(a) ? 1 : 0) - (inF.has(b) ? 1 : 0) ||
+            t.ps[a].since - t.ps[b].since ||
+            nm(a).localeCompare(nm(b)),
+        );
+        const want = new Set(pool.slice(0, S.params.onField));
+        const ons = pool.filter((i) => want.has(i) && !inF.has(i));
+        const offs = F.filter((i) => !want.has(i));
+        let pairs = [];
+        for (let j = 0; j < Math.max(ons.length, offs.length); j++) {
+          pairs.push({ off: offs[j] || null, on: ons[j] || null, ben: true });
+        }
+        if (!S.params.breakReshuffle) {
+          const swaps = pairs.filter((p) => p.off && p.on).slice(0, t.k);
+          pairs = swaps.concat(pairs.filter((p) => !p.off || !p.on));
+        }
+        return pairs;
+      }
+      function fillPairs(t) {
+        const { F, B } = lists(t);
+        const miss = S.params.onField - F.length;
+        return miss > 0 ? B.slice(0, miss).map((on) => ({ off: null, on, ben: true })) : [];
+      }
+      function apply(t, pairs, type) {
+        pairs.forEach(({ off, on }) => {
+          if (off) setSt(t, off, "bench");
+          if (on) setSt(t, on, "field");
+          logEv(t, type, { off, on });
+        });
+      }
+      function offsets(iv) {
+        if (!iv) return [];
+        const h = H();
+        const step = iv * MIN;
+        const out = [];
+        for (let m = 1; m * step < h - 20000; m++) out.push(m * step);
+        return out;
+      }
+      function nextDue(t) {
+        if (!["running", "paused"].includes(t.stage)) return null;
+        const o = offsets(t.interval);
+        return t.pi < o.length ? t.halfStart + o[t.pi] + t.snooze : null;
+      }
+      function resyncPi(t) {
+        const o = offsets(t.interval);
+        const c = clock(t);
+        t.pi = o.findIndex((x) => t.halfStart + x > c + 5000);
+        if (t.pi < 0) t.pi = o.length;
+        t.snooze = 0;
+      }
+      function callPairs(t) {
+        const tog = t.toggle || [];
+        if (t.callType === "plan") {
+          return planPairs(t, t.k).map((p) => ({ ...p, chk: p.ben !== tog.includes(p.on) }));
+        }
+        if (t.callType === "break") {
+          return breakPairs(t).map((p) => ({ ...p, chk: !tog.includes(p.on || p.off) }));
+        }
+        return [];
+      }
+
+      /* ---------- Strategy simulator ---------- */
+      function simulate(n, k, iv) {
+        const P = S.params;
+        const h = H();
+        const t = { g: 0, stage: "sim", acc: 0, res: null, last: 0, base: 0, sim: 0, ps: {}, k, interval: iv, log: [] };
+        for (let i = 0; i < n; i++) t.ps["~" + String(i).padStart(2, "0")] = newPS("bench");
+        let stops = 0;
+        for (let g = 0; g < P.games; g++) {
+          t.g = g;
+          t.sim = 0;
+          t.last = 0;
+          for (let hh = 0; hh < P.halves; hh++) {
+            const hs = hh * h;
+            t.sim = hs;
+            settle(t);
+            apply(t, breakPairs(t), "break");
+            for (const o of offsets(iv)) {
+              t.sim = hs + o;
+              settle(t);
+              const pr = planPairs(t, k).filter((p) => p.ben);
+              if (pr.length) {
+                apply(t, pr, "sub");
+                stops++;
+              }
+            }
+            t.sim = hs + h;
+            settle(t);
+          }
+          t.base += t.sim;
+        }
+        const end = t.base;
+        const ps = Object.values(t.ps);
+        const on = ps.map((p) => p.on);
+        const mb = Math.max(...ps.map((p) => Math.max(p.maxBench, p.st === "bench" ? end - p.since : 0)));
+        return { spread: Math.max(...on) - Math.min(...on), stops, maxBench: mb };
+      }
+      function strategies(n) {
+        const P = S.params;
+        const bench = n - P.onField;
+        if (bench <= 0) return [];
+        const key = [n, P.onField, P.gameMins, P.games, P.halves, P.breakReshuffle].join("|");
+        if (UI.simCache[key]) return UI.simCache[key];
+        const hm = P.gameMins / P.halves;
+        const ivs = [...new Set([2, 3, 4, 5, 6, 8, hm / 2, hm / 3, hm / 4].map((x) => Math.round(x * 60) / 60))].filter(
+          (iv) => iv >= 1.5 && iv < hm,
+        );
+        const out = [];
+        for (let k = 1; k <= Math.min(bench, 6); k++) {
+          for (const iv of ivs) out.push({ k, iv, ...simulate(n, k, iv) });
+          if (!P.breakReshuffle || k === Math.min(bench, 6)) {
+            out.push({ k: P.breakReshuffle ? bench : k, iv: 0, ...simulate(n, P.breakReshuffle ? bench : k, 0) });
+          }
+        }
+        out.forEach((r) => {
+          r.score = (r.spread / MIN) * 3 + r.stops * 0.4 + (r.maxBench / MIN) * 0.15;
+        });
+        out.sort((a, b) => a.score - b.score);
+        UI.simCache[key] = out;
+        return out;
+      }
+      const stratLabel = (k, iv) =>
+        iv ? `Swap ${k} every ${iv % 1 ? fmt(iv * MIN) : iv + " min"}` : S.params.breakReshuffle ? "Changes at breaks only" : `Swap ${k} at breaks only`;
+
+      /* ---------- Spond import ---------- */
+      function mapResp(s) {
+        s = String(s || "").toLowerCase();
+        if (/can.?t|declin|not going|absent/.test(s)) return "no";
+        if (/unans|not answered|maybe|pending|tentative|waiting/.test(s)) return "maybe";
+        if (/going|attend|accept|yes|in\b/.test(s)) return "going";
+        return "maybe";
+      }
+      function cleanName(v) {
+        const s = String(v ?? "").replace(/\s+/g, " ").trim();
+        if (!s || /@/.test(s) || /^name$/i.test(s)) return "";
+        return s;
+      }
+      /* Built-in .xlsx / .csv reader: no external library, works offline */
+      async function inflateRaw(bytes) {
+        if (typeof DecompressionStream === "undefined") throw new Error("NO_INFLATE");
+        const ds = new DecompressionStream("deflate-raw");
+        const stream = new Blob([bytes]).stream().pipeThrough(ds);
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+      }
+      async function unzip(buf) {
+        const u8 = new Uint8Array(buf);
+        const dv = new DataView(buf);
+        let eocd = -1;
+        for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) {
+          if (dv.getUint32(i, true) === 0x06054b50) {
+            eocd = i;
+            break;
+          }
+        }
+        if (eocd < 0) throw new Error("NOT_ZIP");
+        const count = dv.getUint16(eocd + 10, true);
+        let p = dv.getUint32(eocd + 16, true);
+        const files = {};
+        const dec = new TextDecoder();
+        for (let n = 0; n < count; n++) {
+          if (dv.getUint32(p, true) !== 0x02014b50) break;
+          const method = dv.getUint16(p + 10, true);
+          const csize = dv.getUint32(p + 20, true);
+          const nlen = dv.getUint16(p + 28, true);
+          const elen = dv.getUint16(p + 30, true);
+          const clen = dv.getUint16(p + 32, true);
+          const lho = dv.getUint32(p + 42, true);
+          const name = dec.decode(u8.subarray(p + 46, p + 46 + nlen));
+          const start = lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true);
+          files[name] = { method, data: u8.subarray(start, start + csize) };
+          p += 46 + nlen + elen + clen;
+        }
+        return {
+          has: (n) => !!files[n],
+          text: async (n) => {
+            const f = files[n];
+            if (!f) return null;
+            const raw = f.method === 0 ? f.data : await inflateRaw(f.data);
+            return dec.decode(raw);
+          },
+        };
+      }
+      const xml = (t) => new DOMParser().parseFromString(t, "application/xml");
+      const tags = (node, name) => Array.from(node.getElementsByTagNameNS("*", name));
+      const colIndex = (ref) => {
+        const m = /^([A-Z]+)/.exec(ref || "");
+        if (!m) return -1;
+        let n = 0;
+        for (const ch of m[1]) n = n * 26 + (ch.charCodeAt(0) - 64);
+        return n - 1;
+      };
+      async function readXlsx(buf) {
+        const z = await unzip(buf);
+        const shared = [];
+        const sst = await z.text("xl/sharedStrings.xml");
+        if (sst) tags(xml(sst), "si").forEach((si) => shared.push(tags(si, "t").map((t) => t.textContent).join("")));
+        const wbx = xml((await z.text("xl/workbook.xml")) || "<x/>");
+        const rels = xml((await z.text("xl/_rels/workbook.xml.rels")) || "<x/>");
+        const relMap = {};
+        tags(rels, "Relationship").forEach((r) => (relMap[r.getAttribute("Id")] = r.getAttribute("Target")));
+        let paths = tags(wbx, "sheet").map((sh) => {
+          const rid = sh.getAttribute("r:id") || sh.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
+          let t = relMap[rid] || "";
+          t = t.replace(/^\//, "");
+          return t.startsWith("xl/") ? t : "xl/" + t;
+        });
+        if (!paths.length) paths = ["xl/worksheets/sheet1.xml"];
+        const sheets = [];
+        for (const path of paths) {
+          const sx = await z.text(path);
+          if (!sx) continue;
+          const A = [];
+          tags(xml(sx), "row").forEach((row, ri) => {
+            const r = (+row.getAttribute("r") || ri + 1) - 1;
+            const arr = (A[r] = A[r] || []);
+            tags(row, "c").forEach((c, ci) => {
+              const ix = colIndex(c.getAttribute("r"));
+              const type = c.getAttribute("t");
+              const v = tags(c, "v")[0];
+              let val = null;
+              if (type === "s") val = v ? shared[+v.textContent] ?? "" : "";
+              else if (type === "inlineStr") val = tags(c, "t").map((t) => t.textContent).join("");
+              else if (v) val = v.textContent;
+              arr[ix >= 0 ? ix : ci] = val;
+            });
+          });
+          for (let i = 0; i < A.length; i++) if (!A[i]) A[i] = [];
+          sheets.push(A);
+        }
+        return sheets;
+      }
+      function readCsv(text) {
+        const rows = [];
+        let row = [];
+        let cell = "";
+        let q = false;
+        const sep = (text.split("\n")[0].match(/;/g) || []).length > (text.split("\n")[0].match(/,/g) || []).length ? ";" : ",";
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (q) {
+            if (ch === '"' && text[i + 1] === '"') {
+              cell += '"';
+              i++;
+            } else if (ch === '"') q = false;
+            else cell += ch;
+          } else if (ch === '"') q = true;
+          else if (ch === sep) {
+            row.push(cell);
+            cell = "";
+          } else if (ch === "\n" || ch === "\r") {
+            if (ch === "\r" && text[i + 1] === "\n") i++;
+            row.push(cell);
+            rows.push(row);
+            row = [];
+            cell = "";
+          } else cell += ch;
+        }
+        if (cell || row.length) {
+          row.push(cell);
+          rows.push(row);
+        }
+        return [rows];
+      }
+      function loadSheetJS() {
+        return new Promise((res, rej) => {
+          if (window.XLSX) return res(window.XLSX);
+          const sc = document.createElement("script");
+          sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+          sc.onload = () => res(window.XLSX);
+          sc.onerror = () => rej(new Error("LIB"));
+          document.head.appendChild(sc);
+          setTimeout(() => rej(new Error("LIB")), 15000);
+        });
+      }
+      async function readSheets(file) {
+        const buf = await file.arrayBuffer();
+        const head = new Uint8Array(buf.slice(0, 4));
+        const isZip = head[0] === 0x50 && head[1] === 0x4b;
+        if (!isZip) {
+          const text = new TextDecoder().decode(buf);
+          if (/^\s*</.test(text)) throw new Error("That file looks like a web page, not a spreadsheet. Download the Excel export again from Spond.");
+          return readCsv(text.replace(/^\uFEFF/, ""));
+        }
+        try {
+          return await readXlsx(buf);
+        } catch (e) {
+          // Last resort for unusual files or very old browsers
+          const X = await loadSheetJS();
+          const wb = X.read(buf, { type: "array" });
+          return wb.SheetNames.map((n) => X.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: null, raw: false }));
+        }
+      }
+      function parseWorkbook(sheets) {
+        const out = { event: "", date: "", rows: [] };
+        const meta = (A) => {
+          if (!out.event && A[0] && A[0][0]) out.event = String(A[0][0]).trim();
+          if (!out.date && A[1] && A[1][0]) out.date = String(A[1][0]).trim();
+        };
+        // 1. Spond "For import" layout: a header row with Status and Name
+        for (const A of sheets) {
+          for (let r = 0; r < A.length; r++) {
+            const row = (A[r] || []).map((x) => (x == null ? "" : String(x).trim()));
+            const si = row.findIndex((x) => /^(status|response|rsvp|attending)$/i.test(x));
+            const ni = row.findIndex((x) => /^(name|full name|member|player)$/i.test(x));
+            if (si >= 0 && ni >= 0) {
+              for (let q = r + 1; q < A.length; q++) {
+                const rr = A[q] || [];
+                const name = cleanName(rr[ni]);
+                if (name) out.rows.push({ name, resp: mapResp(rr[si]) });
+              }
+              if (out.rows.length) {
+                meta(A);
+                return out;
+              }
+            }
+          }
+        }
+        // 2. Spond "For print" layout: sections like "Going (26)" then names in column A
+        for (const A of sheets) {
+          let cur = null;
+          for (let r = 0; r < A.length; r++) {
+            const c0 = String((A[r] || [])[0] ?? "").trim();
+            const m = c0.match(/^(.+?)\s*\(\d+\)$/);
+            if (m) {
+              cur = mapResp(m[1]);
+              continue;
+            }
+            if (/^name$/i.test(c0)) continue;
+            const name = cleanName(c0);
+            if (cur && name) out.rows.push({ name, resp: cur });
+          }
+          if (out.rows.length) {
+            meta(A);
+            return out;
+          }
+        }
+        // 3. Anything with a Name column
+        for (const A of sheets) {
+          for (let r = 0; r < A.length; r++) {
+            const row = (A[r] || []).map((x) => String(x ?? "").trim());
+            const ni = row.findIndex((x) => /^(name|full name|player)$/i.test(x));
+            if (ni >= 0) {
+              for (let q = r + 1; q < A.length; q++) {
+                const name = cleanName((A[q] || [])[ni]);
+                if (name) out.rows.push({ name, resp: "going" });
+              }
+              if (out.rows.length) return out;
+            }
+          }
+        }
+        return out;
+      }
+      function applyImport(res) {
+        const byName = {};
+        S.order.forEach((id) => (byName[S.players[id].name.toLowerCase()] = id));
+        const seen = new Set();
+        res.rows.forEach((r) => {
+          const key = r.name.toLowerCase();
+          if (seen.has(key)) return;
+          seen.add(key);
+          let id = byName[key];
+          if (!id) {
+            id = uid();
+            S.players[id] = { id, name: r.name, resp: r.resp };
+            S.order.push(id);
+            byName[key] = id;
+          } else S.players[id].resp = r.resp;
+        });
+        if (res.event) S.eventName = res.event;
+        if (res.date) S.eventDate = res.date;
+        S.teams = [];
+      }
+
+      /* ---------- Teams ---------- */
+      function splitTeams(mode) {
+        const n = S.params.teams;
+        let ids = S.order.filter((id) => S.players[id].resp !== "no");
+        if (mode === "shuffle") {
+          for (let i = ids.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [ids[i], ids[j]] = [ids[j], ids[i]];
+          }
+        } else ids.sort((a, b) => nm(a).localeCompare(nm(b)));
+        const going = ids.filter((id) => S.players[id].resp === "going");
+        const maybe = ids.filter((id) => S.players[id].resp === "maybe");
+        const old = S.teams;
+        S.teams = Array.from({ length: n }, (_, i) => ({
+          id: "t" + i,
+          name: (old[i] && old[i].name) || "Team " + "ABCDEFGH"[i],
+          pids: [],
+        }));
+        [...going, ...maybe].forEach((id, i) => {
+          const r = Math.floor(i / n);
+          const c = i % n;
+          S.teams[r % 2 ? n - 1 - c : c].pids.push(id);
+        });
+      }
+      function startDay() {
+        S.T = {};
+        S.teams.forEach((tm) => {
+          const ps = {};
+          tm.pids.forEach((pid) => (ps[pid] = newPS(S.players[pid].resp === "maybe" ? "late" : "bench")));
+          const t = {
+            id: tm.id,
+            g: 0,
+            stage: "pre",
+            half: 1,
+            acc: 0,
+            res: null,
+            last: 0,
+            base: 0,
+            halfStart: 0,
+            pi: 0,
+            snooze: 0,
+            k: S.params.k,
+            interval: S.params.interval,
+            ps,
+            log: [],
+            undo: [],
+            games: [],
+            callType: null,
+            toggle: [],
+            ot: false,
+          };
+          apply(t, breakPairs(t), "lineup");
+          S.T[tm.id] = t;
+        });
+        S.started = true;
+        S.view = "game";
+        S.active = 0;
+      }
+      function pushUndo(t) {
+        const snap = clone(Object.assign({}, t, { undo: undefined }));
+        t.undo.push(snap);
+        if (t.undo.length > 40) t.undo.shift();
+      }
+
+      /* ---------- Alerts, wake lock ---------- */
+      let AC = null;
+      let WL = null;
+      function unlockAudio() {
+        if (!AC) {
+          try {
+            AC = new (window.AudioContext || window.webkitAudioContext)();
+          } catch (e) {}
+        }
+        if (AC && AC.state === "suspended") AC.resume();
+      }
+      function alarm(long) {
+        if (S.sound && AC) {
+          const n = long ? 2 : 3;
+          for (let i = 0; i < n; i++) {
+            const o = AC.createOscillator();
+            const g = AC.createGain();
+            o.frequency.value = long ? 660 : 988;
+            o.connect(g);
+            g.connect(AC.destination);
+            const t0 = AC.currentTime + i * 0.28;
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + (long ? 0.5 : 0.2));
+            o.start(t0);
+            o.stop(t0 + 0.55);
+          }
+        }
+        if (navigator.vibrate) navigator.vibrate(long ? [500, 200, 500] : [250, 120, 250, 120, 250]);
+      }
+      async function wake() {
+        try {
+          if (navigator.wakeLock) WL = await navigator.wakeLock.request("screen");
+        } catch (e) {}
+      }
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && S.started) {
+          wake();
+          render();
+        }
+      });
+      let toastTimer;
+      function toast(msg) {
+        const el = $("#toast");
+        el.textContent = msg;
+        el.classList.add("on");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove("on"), 3200);
+      }
+
+      /* ---------- Files ---------- */
+      async function saveFile(filename, data) {
+        if (DL) {
+          try {
+            await DL.save({ filename, data });
+            toast("Saved " + filename);
+            return;
+          } catch (e) {
+            if (e && e.code === "declined") return;
+          }
+        }
+        const blob = new Blob([data], { type: "application/octet-stream" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(a.href);
+          a.remove();
+        }, 500);
+      }
+      const stamp = () => new Date(S.created).toISOString().slice(0, 10);
+      function csvText() {
+        const P = S.params;
+        const q = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+        const m = (ms) => (ms / MIN).toFixed(2);
+        const head = ["Team", "Player"];
+        for (let i = 0; i < P.games; i++) head.push(`Game ${i + 1} (min)`);
+        head.push("Total (min)", "Fair share (min)", "Difference (min)", "Final status");
+        const rows = [head];
+        S.teams.forEach((tm) => {
+          const t = S.T[tm.id];
+          if (!t) return;
+          tm.pids.forEach((pid) => {
+            const p = t.ps[pid];
+            if (!p) return;
+            rows.push([tm.name, nm(pid), ...p.gOn.map(m), m(p.on), m(p.ent), m(p.on - p.ent), ST_LABEL[p.st]]);
+          });
+        });
+        return rows.map((r) => r.map(q).join(",")).join("\n");
+      }
+      function summaryText() {
+        const out = [S.eventName || "Match day", S.eventDate].filter(Boolean);
+        S.teams.forEach((tm) => {
+          const t = S.T[tm.id];
+          if (!t) return;
+          out.push("", tm.name + ":");
+          summaryLines(t, tm).forEach((l) => out.push("- " + l.txt));
+        });
+        return out.join("\n");
+      }
+
+      /* ---------- Summaries ---------- */
+      function summaryLines(t, tm, gOnly) {
+        const P = S.params;
+        const L = [];
+        const ids = tm.pids.filter((p) => t.ps[p]);
+        const at = (e) => `${fmt(e.ms)} into game ${e.g + 1}`;
+        ids.forEach((pid) => {
+          const mine = t.log.filter((e) => e.pid === pid);
+          mine.forEach((e, i) => {
+            if (gOnly != null && e.g !== gOnly) return;
+            const nmx = nm(pid);
+            if (e.type === "injured") {
+              const back = mine.slice(i + 1).find((x) => x.type === "returned");
+              L.push({
+                k: "inj",
+                txt: `${nmx} was injured ${at(e)}${back ? (back.g === e.g ? " and returned in the same game" : ` and returned for game ${back.g + 1}`) : " and didn't return"}.`,
+              });
+            }
+            if (e.type === "concussed") L.push({ k: "conc", txt: `${nmx} was stood down ${at(e)} with a suspected concussion.` });
+            if (e.type === "arrived") L.push({ k: "late", txt: `${nmx} arrived ${e.stage === "running" || e.stage === "paused" ? at(e) : "before game " + (e.g + 1)}.` });
+            if (e.type === "absent") L.push({ k: "late", txt: `${nmx} went home ${at(e)}.` });
+            if (e.type === "lent") L.push({ k: "late", txt: `${nmx} played for the opposition from ${at(e)}.` });
+          });
+          if (gOnly == null && t.ps[pid].st === "late") L.push({ k: "late", txt: `${nm(pid)} never arrived.` });
+        });
+        if (gOnly != null) {
+          const pl = ids.filter((p) => t.ps[p].gOn[gOnly] > 0);
+          if (pl.length) {
+            const byOn = pl.slice().sort((a, b) => t.ps[b].gOn[gOnly] - t.ps[a].gOn[gOnly]);
+            const hi = byOn[0];
+            const lo = byOn[byOn.length - 1];
+            L.push({ k: "", txt: `Most time: ${nm(hi)} ${fmt(t.ps[hi].gOn[gOnly])}. Least: ${nm(lo)} ${fmt(t.ps[lo].gOn[gOnly])}.` });
+          }
+          const subs = t.log.filter((e) => e.g === gOnly && e.type === "sub").length;
+          L.push({ k: "", txt: `${subs} swaps during play this game.` });
+          return L;
+        }
+        const thr = P.outlier * MIN;
+        const eventful = new Set(
+          t.log.filter((e) => ["injured", "concussed", "arrived", "absent", "lent"].includes(e.type)).map((e) => e.pid),
+        );
+        ids.forEach((p) => {
+          if (t.ps[p].st === "late") eventful.add(p);
+        });
+        const clean = ids.filter((p) => !eventful.has(p));
+        const diff = (p) => t.ps[p].on - t.ps[p].ent;
+        const over = clean.filter((p) => diff(p) >= thr).sort((a, b) => diff(b) - diff(a));
+        const under = clean.filter((p) => -diff(p) >= thr).sort((a, b) => diff(a) - diff(b));
+        if (over.length) L.push({ k: "over", txt: `${joinList(over.map((p) => `${nm(p)} (${fmtS(diff(p))})`))} got more than their fair share.` });
+        if (under.length) L.push({ k: "under", txt: `${joinList(under.map((p) => `${nm(p)} (${fmtS(diff(p))})`))} got less than their fair share.` });
+        if (clean.length && !over.length && !under.length) {
+          L.push({ k: "ok", txt: `Everyone available all day finished within ${fmt(thr)} of their fair share.` });
+        }
+        if (clean.length > 1) {
+          const s = clean.slice().sort((a, b) => t.ps[b].on - t.ps[a].on);
+          const a = s[0];
+          const b = s[s.length - 1];
+          L.push({ k: "", txt: `Spread for those available all day: ${fmt(t.ps[a].on - t.ps[b].on)} (${nm(a)} ${fmt(t.ps[a].on)}, ${nm(b)} ${fmt(t.ps[b].on)}).` });
+        }
+        const played = t.games.length;
+        if (played > 1) {
+          const ns = clean.filter((p) => !t.ps[p].started.some(Boolean));
+          if (ns.length) L.push({ k: "", txt: `${joinList(ns.map(nm))} didn't start a game.` });
+        }
+        let best = null;
+        const end = sess(t);
+        ids.forEach((p) => {
+          const ps = t.ps[p];
+          const s = Math.max(ps.maxStint, ps.st === "field" && t.stage !== "done" ? end - ps.since : 0);
+          if (!best || s > best.s) best = { p, s };
+        });
+        if (best && best.s > 0) L.push({ k: "", txt: `Longest spell without a rest: ${nm(best.p)}, ${fmt(best.s)}.` });
+        const c = (ty) => t.log.filter((e) => e.type === ty).length;
+        L.push({ k: "", txt: `Changes made: ${c("sub")} during play, ${c("break")} at breaks, ${c("manual") + c("fill")} manual or injury cover.` });
+        return L;
+      }
+
+      /* ---------- Rendering ---------- */
+      function header() {
+        const tabs = [
+          ["squad", "Squad"],
+          ["setup", "Setup"],
+          ["game", "Match"],
+          ["summary", "Summary"],
+        ];
+        const dis = (v) =>
+          (v === "setup" && !S.order.length) || ((v === "game" || v === "summary") && !S.started);
+        return `<div class="in"><div class="brand"><img src="${LOGO}" alt="Wimborne RFC"><span>Fair Time</span></div>
+          <button class="ib" data-a="modal" data-m="menu" aria-label="Menu">⋯</button></div>
+          <nav class="tabs">${tabs
+            .map(([v, l]) => `<button data-a="go" data-v="${v}" ${S.view === v ? 'aria-current="page"' : ""} ${dis(v) ? "disabled" : ""}>${l}</button>`)
+            .join("")}</nav>`;
+      }
+      function viewSquad() {
+        const ids = S.order;
+        const c = { going: 0, maybe: 0, no: 0 };
+        ids.forEach((id) => c[S.players[id].resp]++);
+        const lock = S.started;
+        let h = `<img class="crest ${ids.length ? "sm" : ""}" src="${LOGO}" alt="Wimborne RFC crest"><h2>${esc(S.eventName || "Match day squad")}</h2>`;
+        if (S.eventDate) h += `<p class="muted">${esc(S.eventDate)}</p>`;
+        if (lock) {
+          h += `<div class="note">Match day is under way, so the squad is locked. Add a late player from the Match screen, or start a new session from the menu.</div>`;
+        } else {
+          h += `<div class="panel">
+            <div class="row">
+              <label class="btn primary file">Import Spond file<input type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" data-ch="importFile"></label>
+              <button class="btn" data-a="modal" data-m="paste">Paste names</button>
+            </div>
+            <details style="margin-top:12px"><summary>How to export from Spond</summary>
+              <ol>
+                <li>Open the event in Spond.</li>
+                <li>Tap the number of people going, then the Excel icon.</li>
+                <li>Share the file to Files (or Drive), then tap Import Spond file here.</li>
+              </ol>
+              <p class="small muted" style="margin-top:8px">Only names and responses are read. Contact details in the file are ignored and never stored.</p>
+            </details>
+          </div>`;
+        }
+        if (!ids.length) {
+          h += `<p class="muted">No players yet. Import the Spond file for the event, or paste a list of names.</p>`;
+        } else {
+          h += `<div class="counts"><span>Going ${c.going}</span><span>Late or unsure ${c.maybe}</span><span class="muted">Not going ${c.no}</span></div>`;
+          const order = ids.slice().sort((a, b) => {
+            const r = { going: 0, maybe: 1, no: 2 };
+            return r[S.players[a].resp] - r[S.players[b].resp] || nm(a).localeCompare(nm(b));
+          });
+          h += order
+            .map((id) => {
+              const p = S.players[id];
+              const b = (r, l) => `<button class="${r}" aria-pressed="${p.resp === r}" data-a="resp" data-p="${id}" data-r="${r}" ${lock ? "disabled" : ""}>${l}</button>`;
+              return `<div class="sq-row"><span class="nm">${esc(p.name)}</span><span class="seg">${b("going", "Going")}${b("maybe", "Late")}${b("no", "Out")}</span>${lock ? "" : `<button class="x" data-a="removeSquad" data-p="${id}" aria-label="Remove ${esc(p.name)}">×</button>`}</div>`;
+            })
+            .join("");
+        }
+        if (!lock) {
+          h += `<div class="add"><input id="addName" placeholder="Add a player" autocomplete="off"><button class="btn" data-a="addSquad">Add</button></div>`;
+          if (ids.length) h += `<div style="margin-top:18px"><button class="btn primary big" data-a="toSetup">Next: set up teams</button></div>`;
+        }
+        return h;
+      }
+      function stepper(label, k, sfx, lock) {
+        const P = S.params;
+        return `<div class="stp"><span>${label}</span><div class="ctl">${lock ? "" : `<button class="sq" data-a="param" data-k="${k}" data-s="-1" aria-label="Fewer">−</button>`}<b>${P[k]}${sfx || ""}</b>${lock ? "" : `<button class="sq" data-a="param" data-k="${k}" data-s="1" aria-label="More">+</button>`}</div></div>`;
+      }
+      function stratTable(n, curK, curIv, action) {
+        const rows = strategies(n);
+        const P = S.params;
+        if (n - P.onField <= 0) {
+          return `<p class="muted">${n} players for ${P.onField} spots: ${n < P.onField ? "you'll play short" : "everyone plays the whole time"}, so no rotation is needed.</p>`;
+        }
+        let show = rows.slice(0, 5);
+        const cur = rows.find((r) => r.k === curK && r.iv === curIv);
+        if (cur && !show.includes(cur)) show.push(cur);
+        return `<div class="tbl"><table><thead><tr><th>Plan for ${n} players</th><th>Fairness gap</th><th>Stoppages</th><th>Longest rest</th></tr></thead><tbody>${show
+          .map(
+            (r, i) =>
+              `<tr class="pick ${r === cur ? "sel" : ""}" data-a="${action}" data-k="${r.k}" data-i="${r.iv}"><td>${stratLabel(r.k, r.iv)}${i === 0 ? '<span class="rec">Best</span>' : ""}</td><td>${fmt(r.spread)}</td><td>${r.stops}</td><td>${fmt(r.maxBench)}</td></tr>`,
+          )
+          .join("")}</tbody></table></div>
+          <p class="small muted">Fairness gap is the difference between most and least time played across the whole day if nobody drops out. Stoppages count changes during play (breaks are free).</p>`;
+      }
+      function viewSetup() {
+        const P = S.params;
+        const lock = S.started;
+        if (!S.teams.length && S.order.length) splitTeams("az");
+        let h = `<h2>Setup</h2>`;
+        if (lock) h += `<div class="note">Match day is under way. These settings are locked; change the substitution plan per team from the Match screen.</div>`;
+        h += `<div class="panel">
+          ${stepper("Teams", "teams", "", lock)}
+          ${stepper("Players on the pitch", "onField", "", lock)}
+          ${stepper("Minutes per game", "gameMins", "", lock)}
+          ${stepper("Games per team", "games", "", lock)}
+          ${stepper("Halves per game", "halves", "", lock)}
+          <div class="stp"><span>Full reshuffle at half-time and between games</span><button class="switch" aria-pressed="${P.breakReshuffle}" data-a="toggleBreak" ${lock ? "disabled" : ""} aria-label="Full reshuffle at breaks"></button></div>
+          ${stepper("Flag anyone this far from fair share (min)", "outlier", "", false)}
+        </div>`;
+        const sizes = [...new Set(S.teams.map((tm) => tm.pids.filter((p) => S.players[p].resp === "going").length))];
+        if (!lock && !S.stratPicked && sizes.length) {
+          const best = strategies(Math.max(...sizes))[0];
+          if (best) {
+            P.k = best.k;
+            P.interval = best.iv;
+          }
+        }
+        h += `<h3>Substitution plan</h3>`;
+        if (!lock) {
+          h += `<p class="muted">Pick a plan. Each one was run through a full match day to see how evenly it shares time.</p>`;
+          sizes.forEach((n) => (h += stratTable(n, P.k, P.interval, "pickStrat")));
+          h += `<p>Selected: <b>${stratLabel(P.k, P.interval)}</b></p>`;
+        } else {
+          h += `<p>Starting plan: <b>${stratLabel(P.k, P.interval)}</b></p>`;
+        }
+        h += `<h3>Teams</h3>`;
+        if (!lock) {
+          h += `<div class="row" style="margin-bottom:10px"><button class="btn" data-a="split" data-m="az">Split A to Z</button><button class="btn" data-a="split" data-m="shuffle">Shuffle</button></div><p class="small muted">Tap a name to move them to the next team. Amber names haven't confirmed and start as not arrived.</p>`;
+        }
+        h += `<div class="teams">${S.teams
+          .map((tm, i) => {
+            const g = tm.pids.filter((p) => S.players[p].resp === "going").length;
+            const warn = g < P.onField ? `<div class="note bad small">Only ${g} confirmed for ${P.onField} spots.</div>` : "";
+            return `<div class="team"><input class="inp" value="${esc(tm.name)}" data-ch="teamName" data-i="${i}" aria-label="Team name" ${lock ? "disabled" : ""}>
+              <div class="muted small">${tm.pids.length} players, ${g} confirmed, bench of ${Math.max(0, g - P.onField)}</div>${warn}
+              <div class="mini">${tm.pids
+                .slice()
+                .sort((a, b) => nm(a).localeCompare(nm(b)))
+                .map((p) => `<button class="${S.players[p].resp === "maybe" ? "maybe" : ""}" data-a="moveChip" data-p="${p}" ${lock ? "disabled" : ""}>${esc(nm(p))}</button>`)
+                .join("")}</div></div>`;
+          })
+          .join("")}</div>`;
+        if (!lock) h += `<div style="margin-top:18px"><button class="btn primary big" data-a="startDay" ${S.teams.length ? "" : "disabled"}>Start match day</button></div>`;
+        return h;
+      }
+      function dueText(t) {
+        if (t.stage === "pre") return t.interval ? `First change ${fmt(t.interval * MIN)} after kick-off` : "Changes at breaks only";
+        if (t.stage === "ht") return "Half-time";
+        if (t.stage === "ft" || t.stage === "done") return "Full-time";
+        if (!t.interval) return "Changes at breaks only";
+        const due = nextDue(t);
+        const c = clock(t);
+        if (c - t.halfStart >= H()) return "Time's up for this half";
+        if (due == null) return "No more changes this half";
+        return due - c <= 0 ? "Change due now" : `Next change in ${fmt(due - c)}`;
+      }
+      function chip(t, pid, cls, tag) {
+        const p = t.ps[pid];
+        const out = !["field", "bench"].includes(p.st);
+        return `<button class="chip ${cls}" data-a="player" data-t="${t.id}" data-p="${pid}">
+          <span class="nm">${esc(nm(pid))}</span>${tag ? `<span class="tag">${tag}</span>` : ""}
+          <span class="t"><span data-live="pm:${t.id}:${pid}">${fmt(p.on)}</span><small>${out ? esc(ST_LABEL[p.st]) : `<span data-live="df:${t.id}:${pid}">${fmtS(p.on - p.ent)}</span>`}</small></span></button>`;
+      }
+      function viewGame() {
+        const P = S.params;
+        const tm = S.teams[S.active];
+        const t = S.T[tm.id];
+        const L = lists(t);
+        let h = "";
+        if (S.teams.length > 1) {
+          h += `<div class="tt">${S.teams
+            .map((x, i) => `<button data-a="team" data-i="${i}" ${i === S.active ? 'aria-current="true"' : ""}>${esc(x.name)}${S.T[x.id].callType === "plan" && i !== S.active ? '<span class="dot" aria-label="Change due"></span>' : ""}</button>`)
+            .join("")}</div>`;
+        }
+        const c = clock(t);
+        const into = c - t.halfStart;
+        const ot = t.stage === "running" && into >= H();
+        const half = P.halves > 1 ? (t.half === 1 ? ", 1st half" : ", 2nd half") : "";
+        const gl = `Game ${Math.min(t.g + 1, P.games)} of ${P.games}`;
+        const stage = {
+          pre: `${gl}: ready to kick off`,
+          running: gl + half,
+          paused: `${gl}${half}: paused`,
+          ht: `${gl}: half-time`,
+          ft: `${gl}: full-time`,
+          done: "All games finished",
+        }[t.stage];
+        let ctr = "";
+        const endBtn = P.halves > 1 && t.half === 1 ? `<button class="btn ${ot ? "chalk" : "ghost"}" data-a="halftime">Half-time</button>` : `<button class="btn ${ot ? "chalk" : "ghost"}" data-a="fulltime">Full-time</button>`;
+        if (t.stage === "pre") {
+          ctr = `<button class="btn chalk big" data-a="kickoff">Kick off</button>`;
+          if (t.g > 0) ctr += `<button class="btn ghost" data-a="reopen">Game changes</button>`;
+        } else if (t.stage === "running") {
+          ctr = `<button class="btn ghost" data-a="pause">Pause</button><button class="btn ghost" data-a="subNow">Sub now</button>${endBtn}`;
+        } else if (t.stage === "paused") {
+          ctr = `<button class="btn chalk" data-a="resume">Resume</button><button class="btn ghost" data-a="subNow">Sub now</button>${endBtn}`;
+        } else if (t.stage === "ht") {
+          ctr = `<button class="btn chalk big" data-a="secondHalf">Start 2nd half</button><button class="btn ghost" data-a="reopen">Half-time changes</button>`;
+        } else if (t.stage === "ft") {
+          ctr = t.g + 1 < P.games ? `<button class="btn chalk big" data-a="nextGame">Set up game ${t.g + 2}</button>` : `<button class="btn chalk big" data-a="nextGame">Finish the day</button>`;
+        } else {
+          ctr = `<button class="btn chalk big" data-a="go" data-v="summary">See the summary</button>`;
+        }
+        h += `<section class="board ${ot ? "alert" : ""}" aria-label="Match clock">
+          <div class="stage">${stage}</div>
+          <div class="clock"><span data-live="clock:${t.id}">${fmt(c)}</span><small>of ${P.gameMins}:00</small></div>
+          <div class="due" data-live="due:${t.id}">${dueText(t)}</div>
+          <div class="muted" style="color:rgba(255,255,255,.8)">${stratLabel(t.k, t.interval)}</div>
+          <div class="row">${ctr}</div></section>`;
+        if (ot) h += `<div class="note bad">Time's up. Tap ${P.halves > 1 && t.half === 1 ? "Half-time" : "Full-time"} when the whistle goes.</div>`;
+        const fill = fillPairs(t);
+        if (["running", "paused", "pre", "ht"].includes(t.stage)) {
+          if (fill.length) {
+            h += `<div class="note bad">Playing short. Bring on ${joinList(fill.map((p) => esc(nm(p.on))))}. <div style="margin-top:8px"><button class="btn warn" data-a="fillNow">Bring on now</button></div></div>`;
+          } else if (L.F.length < P.onField) {
+            h += `<div class="note bad">Playing with ${L.F.length} and nobody on the bench.</div>`;
+          }
+        }
+        if (t.stage === "ft") {
+          h += `<h3>Game ${t.g + 1} recap</h3><ul class="lines">${summaryLines(t, tm, t.g)
+            .map((l) => `<li class="${l.k}">${esc(l.txt)}</li>`)
+            .join("")}</ul>`;
+        }
+        let plan = [];
+        let planHead = "Next change";
+        if (["running", "paused"].includes(t.stage)) {
+          plan = nextDue(t) != null ? planPairs(t, t.k).filter((p) => p.ben) : [];
+          if (!plan.length) {
+            plan = breakPairs(t).filter((p) => p.off && p.on);
+            planHead = P.halves > 1 && t.half === 1 ? "Likely at half-time" : t.g + 1 < P.games ? "Likely before the next game" : "";
+            if (!planHead) plan = [];
+          }
+        } else if (t.stage === "pre" || t.stage === "ht") {
+          plan = planPairs(t, t.k).filter((p) => p.ben);
+          planHead = "First change after the restart";
+          if (t.stage === "pre" && t.g === 0) plan = planPairs(t, t.k);
+        }
+        const offN = new Set(plan.map((p) => p.off));
+        const onN = new Set(plan.map((p) => p.on));
+        if (plan.length) {
+          h += `<h3>${planHead} <span class="n">${plan.length} swap${plan.length > 1 ? "s" : ""}</span></h3><div class="swaps">${plan
+            .map((p) => `<div class="swap">${chip(t, p.off, "off slim", "")}<span class="arr">${ARROW}</span>${chip(t, p.on, "next slim", "")}</div>`)
+            .join("")}</div>`;
+        }
+        h += `<h3>On the pitch <span class="n">${L.F.length} of ${P.onField}</span></h3><div class="chips">${L.F.map((pid) =>
+          offN.has(pid) ? chip(t, pid, "off", "Off next") : chip(t, pid, "field", ""),
+        ).join("")}</div>`;
+        h += `<h3>Bench <span class="n">${L.B.length}</span></h3>${L.B.length ? `<div class="chips">${L.B.map((pid) => (onN.has(pid) ? chip(t, pid, "next", "On next") : chip(t, pid, "bench", ""))).join("")}</div>` : `<p class="muted">Nobody on the bench.</p>`}`;
+        if (L.O.length) h += `<h3>Not available <span class="n">${L.O.length}</span></h3><div class="chips">${L.O.map((pid) => chip(t, pid, "out", "")).join("")}</div>`;
+        h += `<div class="legend"><span><i style="background:var(--field)"></i>On the pitch</span><span><i style="background:var(--bench)"></i>Bench</span><span><i style="background:var(--next)"></i>On next</span><span><i style="background:var(--off)"></i>Off next</span><span>Numbers: time played, then ahead (+) or behind (-) fair share</span></div>`;
+        h += `<div class="bar"><div class="row"><button class="btn" data-a="undo" ${t.undo.length ? "" : "disabled"}>Undo</button><button class="btn" data-a="stratOpen">Sub plan</button><button class="btn" data-a="modal" data-m="add">Add player</button></div></div>`;
+        return h;
+      }
+      function viewSummary() {
+        const P = S.params;
+        let h = `<img class="crest sm" src="${LOGO}" alt="Wimborne RFC crest"><h2>Summary</h2><p class="muted">${esc(S.eventName || "Match day")}${S.eventDate ? ", " + esc(S.eventDate) : ""}</p>`;
+        h += `<div class="row" style="margin:12px 0"><button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export CSV</button><button class="btn" data-a="exportJSON">Backup (JSON)</button></div>`;
+        S.teams.forEach((tm) => {
+          const t = S.T[tm.id];
+          if (!t) return;
+          settle(t);
+          h += `<h3>${esc(tm.name)}</h3><ul class="lines">${summaryLines(t, tm)
+            .map((l) => `<li class="${l.k}">${esc(l.txt)}</li>`)
+            .join("")}</ul>`;
+          const thr = P.outlier * MIN;
+          const ids = tm.pids.filter((p) => t.ps[p]).sort((a, b) => t.ps[a].on - t.ps[a].ent - (t.ps[b].on - t.ps[b].ent));
+          h += `<div class="tbl"><table><thead><tr><th>Player</th>${Array.from({ length: P.games }, (_, i) => `<th>G${i + 1}</th>`).join("")}<th>Total</th><th>Fair</th><th>+/-</th></tr></thead><tbody>${ids
+            .map((pid) => {
+              const p = t.ps[pid];
+              const d = p.on - p.ent;
+              const cls = d >= thr ? "hi" : -d >= thr ? "lo" : "";
+              const st = p.st === "field" || p.st === "bench" ? "" : ` <span class="muted small">(${esc(ST_LABEL[p.st])})</span>`;
+              return `<tr><td>${esc(nm(pid))}${st}</td>${p.gOn.map((x) => `<td>${fmt(x)}</td>`).join("")}<td><b>${fmt(p.on)}</b></td><td>${fmt(p.ent)}</td><td class="${cls}">${fmtS(d)}</td></tr>`;
+            })
+            .join("")}</tbody></table></div>`;
+        });
+        h += `<p class="small muted">Fair share is each player's slice of the pitch time while they were available, so late arrivals and injuries are accounted for.</p>`;
+        return h;
+      }
+      function callOverlay(t, tm) {
+        const pairs = callPairs(t);
+        const n = pairs.filter((p) => p.chk).length;
+        const title =
+          t.callType === "plan" ? (pairs.length ? `Swap ${n} now` : "No swaps needed") : t.stage === "ht" ? "Half-time changes" : `Changes for game ${t.g + 1}`;
+        const rows = pairs
+          .map(
+            (p) =>
+              `<button class="pair ${p.chk ? "" : "skip"}" data-a="togglePair" data-p="${p.on || p.off}" aria-pressed="${p.chk}"><span class="po">${p.off ? esc(nm(p.off)) : "<i>Empty spot</i>"}</span><span class="arr">${ARROW}</span><span class="pi">${p.on ? esc(nm(p.on)) : "<i>Leave the spot</i>"}</span></button>`,
+          )
+          .join("");
+        const sub = [S.teams.length > 1 ? esc(tm.name) : "", t.callType === "plan" ? `Clock <span data-live="clock:${t.id}">${fmt(clock(t))}</span>` : ""].filter(Boolean).join(", ");
+        return `<div class="call ${t.callType}" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+          <div class="call-h"><div class="call-t">${title}</div>${sub ? `<div class="call-s">${sub}</div>` : ""}</div>
+          ${pairs.length ? `<div class="call-k"><span>Coming off</span><span></span><span>Going on</span></div>` : ""}
+          <div class="pairs">${rows || `<p class="muted" style="padding:16px 0">Everyone is on track. Nothing to change.</p>`}</div>
+          <div class="call-f">${pairs.length ? '<p class="hint">Tap a pair to leave it out.</p>' : ""}
+            <button class="btn big go" data-a="callDone">${n ? `Done: ${n} swapped` : "Carry on"}</button>
+            <div class="row">${t.callType === "plan" ? `<button class="btn" data-a="callSnooze">Wait 30 sec</button><button class="btn" data-a="callSkip">Skip this change</button>` : `<button class="btn" data-a="callSkip">Skip changes</button>`}</div>
+          </div></div>`;
+      }
+      function sheetView() {
+        const t = S.T[UI.sheet.t];
+        const pid = UI.sheet.p;
+        const p = t && t.ps[pid];
+        if (!p) {
+          UI.sheet = null;
+          return "";
+        }
+        const L = lists(t);
+        const b = (a, label, extra, cls) => `<button class="btn ${cls || ""}" data-a="${a}" data-t="${t.id}" data-p="${pid}" ${extra || ""}>${label}</button>`;
+        let o = "";
+        if (p.st === "field") {
+          if (L.B.length) o += `<div class="grp">Swap off for</div>` + L.B.map((x) => b("swapWith", esc(nm(x)) + ` <span class="muted small">${fmt(t.ps[x].on)}</span>`, `data-o="${x}"`)).join("");
+        } else if (p.st === "bench") {
+          if (L.F.length) o += `<div class="grp">Bring on for</div>` + L.F.map((x) => b("swapWith", esc(nm(x)) + ` <span class="muted small">${fmt(t.ps[x].on)}</span>`, `data-o="${x}"`)).join("");
+          if (L.F.length < S.params.onField) o += b("setst", "Put on the pitch (empty spot)", 'data-s="field"', "go");
+        }
+        o += `<div class="grp">Status</div>`;
+        if (p.st === "field" || p.st === "bench") {
+          o += b("setst", "Injured", 'data-s="injured"', "warn");
+          o += b("setst", "Suspected concussion: out for the day", 'data-s="concussed"', "warn");
+          o += b("setst", "Lend to the opposition", 'data-s="lent"');
+          o += b("setst", "Gone home", 'data-s="absent"');
+        } else if (p.st === "injured") {
+          o += b("setst", "Fit to play again", 'data-s="bench"', "go") + b("setst", "Suspected concussion: out for the day", 'data-s="concussed"', "warn") + b("setst", "Gone home", 'data-s="absent"');
+        } else if (p.st === "late" || p.st === "absent") {
+          o += b("setst", "Arrived: put on the bench", 'data-s="bench"', "go");
+        } else if (p.st === "lent") {
+          o += b("setst", "Back from the opposition", 'data-s="bench"', "go");
+        } else if (p.st === "concussed") {
+          o += `<p class="small">Players with a suspected concussion shouldn't return to play on the same day. If this was tapped by mistake, use Undo, or clear it below.</p>` + b("setst", "Clear: entered by mistake", 'data-s="bench"');
+        }
+        const others = S.teams.filter((x) => x.id !== t.id);
+        if (others.length && ["pre", "ft", "done"].includes(t.stage)) {
+          o += `<div class="grp">Move to</div>` + others.map((x) => b("moveTeam", esc(x.name), `data-to="${x.id}"`)).join("");
+        }
+        return `<div class="scrim" data-a="closeSheet"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(nm(pid))}">
+          <h2>${esc(nm(pid))}</h2><p class="muted">${esc(ST_LABEL[p.st])}. Played ${fmt(p.on)}, fair share ${fmt(p.ent)}.</p>
+          <div class="opts">${o}<button class="btn" data-a="closeSheet">Close</button></div></div>`;
+      }
+      function modalView() {
+        const m = UI.modal;
+        let inner = "";
+        if (m === "paste") {
+          inner = `<h2>Paste names</h2><p class="muted">One name per line, or separated by commas. Everyone pasted is marked as going.</p><textarea id="pasteBox"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="pasteApply">Add names</button></div>`;
+        } else if (m === "menu") {
+          inner = `<h2>Menu</h2><div class="opts">
+            ${S.started ? '<button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export minutes (CSV)</button>' : ""}
+            <button class="btn" data-a="exportJSON">Back up this session (JSON)</button>
+            <label class="btn file">Restore a backup<input type="file" accept=".json,application/json" data-ch="restoreFile"></label>
+            <button class="btn" data-a="sound">Sound alerts: ${S.sound ? "on" : "off"}</button>
+            <button class="btn" data-a="theme">Theme: ${S.theme || "match device"}</button>
+            <button class="btn warn" data-a="modal" data-m="new">Start a new session</button>
+            <button class="btn" data-a="closeModal">Close</button></div>`;
+        } else if (m === "new") {
+          inner = `<h2>Start a new session?</h2><div class="note bad">This clears the squad, teams and every minute recorded on this device. It can't be undone.</div><div class="opts"><button class="btn" data-a="exportJSON">Back up first (JSON)</button><button class="btn warn" data-a="newConfirm">Clear and start new</button><button class="btn" data-a="closeModal">Keep this session</button></div>`;
+        } else if (m === "add") {
+          inner = `<h2>Add a player</h2><p class="muted">They go on the bench with a fair share counted from now.</p><div class="add"><input id="addLate" placeholder="Name" autocomplete="off"></div><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="addLate">Add to ${esc(S.teams[S.active].name)}</button></div>`;
+        } else if (m === "strat") {
+          const t = S.T[S.teams[S.active].id];
+          const n = lists(t).F.length + lists(t).B.length;
+          const s = UI.strat;
+          inner = `<h2>Sub plan</h2><p class="muted">Changes apply from now for ${esc(S.teams[S.active].name)}. Based on ${n} available players.</p>
+            <div class="stp"><span>Players per change</span><div class="ctl"><button class="sq" data-a="stratStep" data-f="k" data-s="-1">−</button><b>${s.k}</b><button class="sq" data-a="stratStep" data-f="k" data-s="1">+</button></div></div>
+            <div class="stp"><span>Minutes between changes (0 = breaks only)</span><div class="ctl"><button class="sq" data-a="stratStep" data-f="iv" data-s="-1">−</button><b>${s.iv % 1 ? fmt(s.iv * MIN) : s.iv}</b><button class="sq" data-a="stratStep" data-f="iv" data-s="1">+</button></div></div>
+            ${stratTable(n, s.k, s.iv, "stratPick")}
+            <div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="stratApply">Use ${stratLabel(s.k, s.iv).toLowerCase()}</button></div>`;
+        }
+        return `<div class="scrim" data-a="closeModal"></div><div class="sheet" role="dialog" aria-modal="true">${inner}</div>`;
+      }
+      function layer() {
+        let h = "";
+        if (S.view === "game" && S.started) {
+          const tm = S.teams[S.active];
+          const t = S.T[tm.id];
+          if (t.callType) h += callOverlay(t, tm);
+        }
+        if (UI.sheet) h += sheetView();
+        if (UI.modal) h += modalView();
+        return h;
+      }
+      let lastSig = "";
+      function gameSig() {
+        return (
+          S.teams
+            .map((tm) => {
+              const t = S.T[tm.id];
+              const L = lists(t);
+              const due = nextDue(t);
+              const c = clock(t);
+              const ot = t.stage === "running" && c - t.halfStart >= H();
+              const cp = t.callType ? callPairs(t).map((p) => (p.chk ? 1 : 0)).join("") : "";
+              const pl = ["running", "paused"].includes(t.stage)
+                ? planPairs(t, t.k).map((p) => (p.ben ? 1 : 0)).join("") + breakPairs(t).map((p) => p.on + p.off).join()
+                : "";
+              return [t.stage, t.callType, (t.toggle || []).join(), L.F.join(), L.B.join(), L.O.map((i) => i + t.ps[i].st).join(), ot, due != null && due <= c, cp, pl, t.k, t.interval, t.undo.length].join("/");
+            })
+            .join("|") +
+          S.active +
+          (UI.sheet ? JSON.stringify(UI.sheet) : "") +
+          (UI.modal || "")
+        );
+      }
+      function liveUpdate() {
+        document.querySelectorAll("[data-live]").forEach((el) => {
+          const [k, tid, pid] = el.dataset.live.split(":");
+          const t = S.T[tid];
+          if (!t) return;
+          let v = "";
+          if (k === "clock") v = fmt(clock(t));
+          else if (k === "due") v = dueText(t);
+          else if (k === "pm") v = fmt(t.ps[pid] ? t.ps[pid].on : 0);
+          else if (k === "df") v = t.ps[pid] ? fmtS(t.ps[pid].on - t.ps[pid].ent) : "";
+          if (el.textContent !== v) el.textContent = v;
+        });
+      }
+      function render() {
+        if (!S.started && (S.view === "game" || S.view === "summary")) S.view = S.order.length ? "setup" : "squad";
+        if (S.theme) document.documentElement.dataset.theme = S.theme;
+        else delete document.documentElement.dataset.theme;
+        $("#top").innerHTML = header();
+        const v = S.view;
+        $("#app").innerHTML = v === "squad" ? viewSquad() : v === "setup" ? viewSetup() : v === "game" ? viewGame() : viewSummary();
+        $("#layer").innerHTML = layer();
+        lastSig = S.view === "game" && S.started ? gameSig() : "";
+      }
+
+      /* ---------- Clock tick ---------- */
+      let lastSave = 0;
+      function tick() {
+        if (!S.started) return;
+        S.teams.forEach((tm, i) => {
+          const t = S.T[tm.id];
+          if (!t || t.stage !== "running") return;
+          settle(t);
+          const c = clock(t);
+          const due = nextDue(t);
+          if (due != null && c >= due && !t.callType && c - t.halfStart < H()) {
+            t.callType = "plan";
+            t.toggle = [];
+            t.early = false;
+            if (!S.T[S.teams[S.active].id].callType) S.active = i;
+            alarm(false);
+          }
+          if (c - t.halfStart >= H() && !t.ot) {
+            t.ot = true;
+            alarm(true);
+          }
+        });
+        if (S.view === "game") {
+          if (gameSig() !== lastSig) render();
+          else liveUpdate();
+        }
+        if (Date.now() - lastSave > 3000) {
+          save();
+          lastSave = Date.now();
+        }
+      }
+      setInterval(tick, 250);
+
+      /* ---------- Actions ---------- */
+      const cur = () => S.T[S.teams[S.active].id];
+      const limits = { teams: [1, 6], onField: [3, 15], gameMins: [4, 40], games: [1, 8], halves: [1, 2], outlier: [0.5, 5] };
+      const A = {
+        go: (d) => {
+          S.view = d.v;
+          UI.sheet = null;
+          UI.modal = null;
+        },
+        modal: (d) => {
+          UI.modal = d.m;
+        },
+        closeModal: () => {
+          UI.modal = null;
+        },
+        resp: (d) => {
+          S.players[d.p].resp = d.r;
+          S.teams = [];
+        },
+        addSquad: () => {
+          const name = $("#addName").value.trim();
+          if (!name) return;
+          applyImport({ rows: [{ name, resp: "going" }] });
+        },
+        removeSquad: (d) => {
+          delete S.players[d.p];
+          S.order = S.order.filter((x) => x !== d.p);
+          S.teams = [];
+        },
+        pasteApply: () => {
+          const rows = $("#pasteBox")
+            .value.split(/\n|,/)
+            .map((s) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
+            .filter(Boolean)
+            .map((name) => ({ name, resp: "going" }));
+          applyImport({ rows });
+          UI.modal = null;
+          toast(`Added ${rows.length} names`);
+        },
+        toSetup: () => {
+          if (!S.teams.length) splitTeams("az");
+          S.view = "setup";
+        },
+        param: (d) => {
+          const P = S.params;
+          const [lo, hi] = limits[d.k];
+          const step = d.k === "outlier" ? 0.5 : 1;
+          P[d.k] = Math.min(hi, Math.max(lo, +P[d.k] + step * +d.s));
+          if (d.k === "teams") splitTeams("az");
+          const hm = P.gameMins / P.halves;
+          if (P.interval >= hm) P.interval = 0;
+          S.stratPicked = false;
+          UI.simCache = {};
+        },
+        toggleBreak: () => {
+          S.params.breakReshuffle = !S.params.breakReshuffle;
+          S.stratPicked = false;
+          UI.simCache = {};
+        },
+        pickStrat: (d) => {
+          S.params.k = +d.k;
+          S.params.interval = +d.i;
+          S.stratPicked = true;
+        },
+        split: (d) => splitTeams(d.m),
+        moveChip: (d) => {
+          const i = S.teams.findIndex((t) => t.pids.includes(d.p));
+          S.teams[i].pids = S.teams[i].pids.filter((x) => x !== d.p);
+          S.teams[(i + 1) % S.teams.length].pids.push(d.p);
+        },
+        startDay: () => startDay(),
+        team: (d) => {
+          S.active = +d.i;
+        },
+        kickoff: () => {
+          const t = cur();
+          pushUndo(t);
+          const f = fillPairs(t);
+          if (f.length) apply(t, f, "fill");
+          Object.values(t.ps).forEach((p) => {
+            if (p.st === "field") p.started[t.g] = true;
+          });
+          t.callType = null;
+          t.stage = "running";
+          t.res = Date.now();
+          t.halfStart = 0;
+          t.half = 1;
+          t.pi = 0;
+          t.snooze = 0;
+          t.ot = false;
+          wake();
+        },
+        pause: () => {
+          const t = cur();
+          pushUndo(t);
+          settle(t);
+          t.acc = clock(t);
+          t.res = null;
+          t.stage = "paused";
+        },
+        resume: () => {
+          const t = cur();
+          pushUndo(t);
+          t.res = Date.now();
+          t.stage = "running";
+        },
+        halftime: () => {
+          const t = cur();
+          pushUndo(t);
+          settle(t);
+          t.acc = clock(t);
+          t.res = null;
+          t.stage = "ht";
+          t.callType = "break";
+          t.toggle = [];
+        },
+        secondHalf: () => {
+          const t = cur();
+          pushUndo(t);
+          t.callType = null;
+          t.stage = "running";
+          t.half = 2;
+          t.halfStart = t.acc;
+          t.pi = 0;
+          t.snooze = 0;
+          t.ot = false;
+          t.res = Date.now();
+          wake();
+        },
+        fulltime: () => {
+          const t = cur();
+          pushUndo(t);
+          settle(t);
+          t.acc = clock(t);
+          t.res = null;
+          t.stage = "ft";
+          t.callType = null;
+          t.games[t.g] = { dur: t.acc };
+        },
+        nextGame: () => {
+          const t = cur();
+          pushUndo(t);
+          t.base += t.acc;
+          t.acc = 0;
+          t.last = 0;
+          t.half = 1;
+          t.halfStart = 0;
+          t.ot = false;
+          if (t.g + 1 >= S.params.games) {
+            t.stage = "done";
+            S.view = S.teams.every((x) => S.T[x.id].stage === "done") ? "summary" : "game";
+          } else {
+            t.g++;
+            t.stage = "pre";
+            t.callType = "break";
+            t.toggle = [];
+          }
+        },
+        reopen: () => {
+          const t = cur();
+          t.callType = "break";
+          t.toggle = [];
+        },
+        subNow: () => {
+          const t = cur();
+          t.callType = "plan";
+          t.toggle = [];
+          t.early = true;
+        },
+        togglePair: (d) => {
+          const t = cur();
+          t.toggle = t.toggle || [];
+          t.toggle = t.toggle.includes(d.p) ? t.toggle.filter((x) => x !== d.p) : t.toggle.concat(d.p);
+        },
+        callDone: () => {
+          const t = cur();
+          const sel = callPairs(t).filter((p) => p.chk);
+          pushUndo(t);
+          apply(t, sel, t.callType === "plan" ? "sub" : "break");
+          if (t.callType === "plan") {
+            const due = nextDue(t);
+            if (!t.early) {
+              t.pi++;
+              t.snooze = 0;
+            } else if (due != null && due - clock(t) < (t.interval * MIN) / 2) {
+              t.pi++;
+              t.snooze = 0;
+            }
+          }
+          t.callType = null;
+          t.early = false;
+          if (sel.length) toast(`${sel.length} change${sel.length > 1 ? "s" : ""} made`);
+        },
+        callSnooze: () => {
+          const t = cur();
+          if (!t.early) t.snooze += 30000;
+          t.callType = null;
+        },
+        callSkip: () => {
+          const t = cur();
+          if (t.callType === "plan" && !t.early) {
+            t.pi++;
+            t.snooze = 0;
+          }
+          t.callType = null;
+          t.early = false;
+        },
+        fillNow: () => {
+          const t = cur();
+          pushUndo(t);
+          apply(t, fillPairs(t), "fill");
+        },
+        player: (d) => {
+          UI.sheet = { t: d.t, p: d.p };
+        },
+        closeSheet: () => {
+          UI.sheet = null;
+        },
+        swapWith: (d) => {
+          const t = S.T[d.t];
+          pushUndo(t);
+          const p = t.ps[d.p];
+          apply(t, [p.st === "field" ? { off: d.p, on: d.o } : { off: d.o, on: d.p }], "manual");
+          UI.sheet = null;
+        },
+        setst: (d) => {
+          const t = S.T[d.t];
+          pushUndo(t);
+          const was = t.ps[d.p].st;
+          setSt(t, d.p, d.s);
+          let type = d.s;
+          if (d.s === "bench") type = was === "injured" ? "returned" : was === "lent" ? "back" : was === "concussed" ? "cleared" : "arrived";
+          if (d.s !== "field") logEv(t, type, { pid: d.p });
+          else logEv(t, "manual", { off: null, on: d.p });
+          if (was === "field" && t.stage !== "ft" && t.stage !== "done") {
+            const f = fillPairs(t).slice(0, 1);
+            if (f.length) {
+              apply(t, f, "fill");
+              toast(`${nm(f[0].on)} on for ${nm(d.p)}`);
+            }
+          }
+          UI.sheet = null;
+        },
+        moveTeam: (d) => {
+          const t = S.T[d.t];
+          const t2 = S.T[d.to];
+          settle(t);
+          settle(t2);
+          const ps = t.ps[d.p];
+          if (ps.st === "field") ps.st = "bench";
+          ps.since = sess(t2);
+          t2.ps[d.p] = ps;
+          delete t.ps[d.p];
+          const a = S.teams.find((x) => x.id === d.t);
+          const b = S.teams.find((x) => x.id === d.to);
+          a.pids = a.pids.filter((x) => x !== d.p);
+          b.pids.push(d.p);
+          t.undo = [];
+          t2.undo = [];
+          toast(`${nm(d.p)} moved to ${b.name}`);
+          UI.sheet = null;
+        },
+        undo: () => {
+          const t = cur();
+          const snap = t.undo.pop();
+          if (!snap) return;
+          const u = t.undo;
+          Object.keys(t).forEach((k) => delete t[k]);
+          Object.assign(t, snap, { undo: u });
+          toast("Undone");
+        },
+        stratOpen: () => {
+          const t = cur();
+          UI.strat = { k: t.k, iv: t.interval };
+          UI.modal = "strat";
+        },
+        stratStep: (d) => {
+          const s = UI.strat;
+          const hm = S.params.gameMins / S.params.halves;
+          if (d.f === "k") s.k = Math.max(1, Math.min(12, s.k + +d.s));
+          else s.iv = Math.max(0, Math.min(Math.ceil(hm) - 1, Math.round(s.iv) + +d.s));
+        },
+        stratPick: (d) => {
+          UI.strat = { k: +d.k, iv: +d.i };
+        },
+        stratApply: () => {
+          const t = cur();
+          pushUndo(t);
+          t.k = UI.strat.k;
+          t.interval = UI.strat.iv;
+          if (["running", "paused"].includes(t.stage)) resyncPi(t);
+          logEv(t, "plan", { note: stratLabel(t.k, t.interval) });
+          UI.modal = null;
+          toast("Plan changed: " + stratLabel(t.k, t.interval).toLowerCase());
+        },
+        addLate: () => {
+          const name = $("#addLate").value.trim();
+          if (!name) return;
+          const t = cur();
+          const tm = S.teams[S.active];
+          const id = uid();
+          S.players[id] = { id, name, resp: "going" };
+          S.order.push(id);
+          tm.pids.push(id);
+          settle(t);
+          t.ps[id] = newPS("bench");
+          t.ps[id].since = sess(t);
+          logEv(t, "arrived", { pid: id });
+          UI.modal = null;
+          toast(`${name} added to the bench`);
+        },
+        exportJSON: () => {
+          const o = clone(S);
+          Object.values(o.T || {}).forEach((t) => (t.undo = []));
+          saveFile(`fair-time-${stamp()}.json`, JSON.stringify(o, null, 2));
+        },
+        exportCSV: () => saveFile(`fair-time-minutes-${stamp()}.csv`, csvText()),
+        shareText: async () => {
+          const text = summaryText();
+          try {
+            if (navigator.share) {
+              await navigator.share({ title: "Match day summary", text });
+              return;
+            }
+          } catch (e) {
+            if (e && e.name === "AbortError") return;
+          }
+          try {
+            await navigator.clipboard.writeText(text);
+            toast("Summary copied");
+          } catch (e) {
+            saveFile(`fair-time-summary-${stamp()}.txt`, text);
+          }
+        },
+        sound: () => {
+          S.sound = !S.sound;
+          if (S.sound) alarm(false);
+        },
+        theme: () => {
+          S.theme = S.theme === "" ? "light" : S.theme === "light" ? "dark" : "";
+        },
+        newConfirm: () => {
+          const keep = { sound: S.sound, theme: S.theme };
+          try {
+            localStorage.removeItem(KEY);
+          } catch (e) {}
+          S = Object.assign(fresh(), keep);
+          UI.modal = null;
+          UI.sheet = null;
+          UI.simCache = {};
+          toast("Previous session cleared");
+        },
+      };
+      async function importFileObj(f) {
+          try {
+            let sheets;
+            try {
+              sheets = await readSheets(f);
+            } catch (e) {
+              throw new Error(e && e.message && !/^(LIB|NOT_ZIP|NO_INFLATE)$/.test(e.message) ? e.message : "Couldn't read that file on this device. Use Paste names instead, or send me the file so I can check it.");
+            }
+            const res = parseWorkbook(sheets);
+            if (!res.rows.length) throw new Error("No names found in that file. Export the event participant list from Spond, or use Paste names.");
+            applyImport(res);
+            const g = res.rows.filter((r) => r.resp === "going").length;
+            toast(`Imported ${res.rows.length} names, ${g} going`);
+          } catch (e) {
+            toast(e.message);
+          }
+          save();
+          render();
+        }
+      const C = {
+        importFile: async (el) => {
+          const f = el.files && el.files[0];
+          if (!f) return;
+          await importFileObj(f);
+          el.value = "";
+        },
+        restoreFile: async (el) => {
+          const f = el.files && el.files[0];
+          if (!f) return;
+          try {
+            const o = JSON.parse(await f.text());
+            if (!o || o.v !== 1 || !o.params) throw new Error("That file isn't a Fair Time backup.");
+            if (!confirm("Restoring replaces everything currently on this device. Continue?")) return;
+            Object.values(o.T || {}).forEach((t) => (t.undo = t.undo || []));
+            S = o;
+            UI.modal = null;
+            UI.simCache = {};
+            toast("Backup restored");
+          } catch (e) {
+            toast(e.message || "Couldn't read that file.");
+          }
+          save();
+          render();
+        },
+        teamName: (el) => {
+          S.teams[+el.dataset.i].name = el.value.trim() || "Team";
+          save();
+        },
+      };
+      document.addEventListener("click", (e) => {
+        unlockAudio();
+        const el = e.target.closest("[data-a]");
+        if (!el || el.disabled) return;
+        const fn = A[el.dataset.a];
+        if (!fn) return;
+        const r = fn(el.dataset, el, e);
+        if (r && r.then) r.then(() => (save(), render()));
+        save();
+        render();
+      });
+      document.addEventListener("change", (e) => {
+        const el = e.target.closest("[data-ch]");
+        if (el && C[el.dataset.ch]) C[el.dataset.ch](el, e);
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && e.target.id === "addName") A.addSquad(), save(), render();
+        if (e.key === "Enter" && e.target.id === "addLate") A.addLate(), save(), render();
+        if (e.key === "Escape" && (UI.sheet || UI.modal)) {
+          UI.sheet = null;
+          UI.modal = null;
+          render();
+        }
+      });
+      if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      }
+      async function checkShared() {
+        if (!/[?&]shared=1/.test(location.search)) return;
+        history.replaceState(null, "", location.pathname);
+        try {
+          const c = await caches.open("fairtime-share");
+          const key = new URL("shared-file", location.href).href;
+          const r = await c.match(key);
+          if (!r) return;
+          const name = decodeURIComponent(r.headers.get("x-name") || "shared.xlsx");
+          const file = new File([await r.blob()], name);
+          await c.delete(key);
+          if (S.started) {
+            toast("Match day is under way. Start a new session before importing a new squad.");
+            return;
+          }
+          S.view = "squad";
+          await importFileObj(file);
+        } catch (e) {
+          toast("Couldn't open the shared file. Use Import Spond file instead.");
+        }
+      }
+      render();
+      checkShared();
+    </script>
+  </body>
+</html>
