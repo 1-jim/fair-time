@@ -210,8 +210,7 @@ This was built for our age group, and we'd like it to work for every team at the
 
 **How to send it:**
 
-- Raise an issue on GitHub: `https://github.com/<your-username>/fair-time/issues`
-- Or message `<contact name>` directly.
+- Raise an issue on GitHub: `https://github.com/1-jim/fair-time/issues`
 
 Screenshots help a lot, especially of the Summary screen or anything that looks wrong.
 
