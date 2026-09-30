@@ -8,7 +8,7 @@ When someone doesn't turn up, gets injured or arrives late, you tap their name a
 
 > This is an early version built by a club parent. Please try it and tell us what works and what doesn't: see [Feedback](#feedback) at the end.
 
-**Open the app:** `https://<your-username>.github.io/fair-time/`
+**Open the app:** `https://1-jim.github.io/fair-time/`
 
 ---
 
