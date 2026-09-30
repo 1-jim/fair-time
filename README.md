@@ -4,6 +4,8 @@ Fair game-time rotation for age-grade rugby match days. Import the Spond attende
 
 It is a single static page. There is no server and no account: all match data stays in the browser on the phone that runs it.
 
+See [USER_GUIDE.md](USER_GUIDE.md) for the full coach guide.
+
 ## Using it
 
 1. Open the site on your phone and add it to the home screen (Safari: Share > Add to Home Screen; Chrome: menu > Install app).
@@ -19,6 +21,8 @@ Back up a session from the menu (JSON) to move it to another phone or keep a rec
 | File | Purpose |
 | --- | --- |
 | `index.html` | The whole app |
+| `USER_GUIDE.md` | Coach's guide (source) |
+| `guide.html` | Coach's guide as shown in the app. Rebuild with `python3 build_guide.py` (needs `pip install markdown`) after editing the guide |
 | `sw.js` | Offline support and the Android share target |
 | `manifest.webmanifest` | Home-screen install, icons, share target |
 | `icons/` | App icons made from the club crest |

@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17613A" />
+    <title>How to use Fair Time</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --pitch: #17613a;
+        --bg: #f3f6f4;
+        --surface: #fff;
+        --ink: #0f2016;
+        --muted: #56665c;
+        --line: #d3dcd6;
+        --next: #c98a00;
+        --next-t: #fff1cc;
+        color-scheme: light;
+        box-sizing: border-box;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #0c1711;
+          --surface: #13231a;
+          --ink: #e7f0ea;
+          --muted: #9db0a4;
+          --line: #27402f;
+          --next: #f2b01e;
+          --next-t: #3b2f0f;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #0c1711;
+        --surface: #13231a;
+        --ink: #e7f0ea;
+        --muted: #9db0a4;
+        --line: #27402f;
+        --next: #f2b01e;
+        --next-t: #3b2f0f;
+        color-scheme: dark;
+      }
+      html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 70px); }
+      *, *::before, *::after { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 "Barlow", system-ui, sans-serif; }
+      .top {
+        position: sticky;
+        top: env(safe-area-inset-top, 0px);
+        z-index: 5;
+        background: var(--pitch);
+        color: #fff;
+        box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.85);
+      }
+      .top .in { max-width: 760px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+      .top img { height: 40px; filter: brightness(0) invert(1); }
+      .top a {
+        margin-left: auto;
+        color: #fff;
+        font: 600 18px "Barlow Condensed", system-ui, sans-serif;
+        text-decoration: none;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 8px;
+        padding: 8px 14px;
+      }
+      .top a, .top span { white-space: nowrap; }
+      .top span { font: 700 22px "Barlow Condensed", system-ui, sans-serif; }
+      main { max-width: 760px; margin: 0 auto; padding: 18px 16px 60px; }
+      h1, h2, h3 { font-family: "Barlow Condensed", system-ui, sans-serif; line-height: 1.15; }
+      h1 { font-size: 38px; margin: 6px 0 10px; }
+      h2 { font-size: 30px; margin: 36px 0 10px; }
+      h3 { font-size: 23px; margin: 24px 0 8px; }
+      p, li { max-width: 68ch; }
+      a { color: var(--pitch); }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) a { color: #7fd3a2; } }
+      hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+      blockquote { margin: 16px 0; padding: 10px 14px; border-left: 6px solid var(--next); background: var(--next-t); border-radius: 8px; }
+      blockquote p { margin: 0; }
+      code { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-size: 0.9em; overflow-wrap: anywhere; }
+      .tbl { overflow-x: auto; margin: 12px 0; }
+      table { border-collapse: collapse; width: 100%; background: var(--surface); border-radius: 8px; }
+      th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { font: 600 16px "Barlow Condensed", system-ui, sans-serif; color: var(--muted); }
+      li { margin: 4px 0; }
+    </style>
+  </head>
+  <body>
+    <header class="top"><div class="in"><img src="icons/icon-192.png" alt="" style="filter:none;border-radius:6px"><span>Coach's guide</span><a href="./">Back to app</a></div></header>
+    <main>
+<h1 id="fair-time-coachs-guide">Fair Time: coach's guide</h1>
+<p><strong>Fair game time for every player, even when match day doesn't go to plan.</strong></p>
+<p>Fair Time runs your substitutions on match day. You load the Spond attendee list and pick a substitution plan. The app then tells you who comes off and who goes on, keeps track of everyone's minutes, and produces a summary at the end.</p>
+<p>When someone doesn't turn up, gets injured or arrives late, you tap their name and the rotation adjusts itself. There's no spreadsheet to redo on the touchline.</p>
+<blockquote>
+<p>This is an early version built by a club parent. Please try it and tell us what works and what doesn't: see <a href="#feedback">Feedback</a> at the end.</p>
+</blockquote>
+<hr />
+<h2 id="contents">Contents</h2>
+<ol>
+<li><a href="#1-before-match-day">Before match day</a></li>
+<li><a href="#2-setting-up-teams">Setting up teams</a></li>
+<li><a href="#3-on-the-touchline">On the touchline</a></li>
+<li><a href="#4-when-things-change">When things change</a></li>
+<li><a href="#5-after-the-games">After the games</a></li>
+<li><a href="#6-good-to-know">Good to know</a></li>
+<li><a href="#feedback">Feedback</a></li>
+</ol>
+<hr />
+<h2 id="1-before-match-day">1. Before match day</h2>
+<h3 id="install-it-on-your-phone">Install it on your phone</h3>
+<p>Open the link above, then:</p>
+<ul>
+<li><strong>iPhone (Safari):</strong> tap Share, then <strong>Add to Home Screen</strong>.</li>
+<li><strong>Android (Chrome):</strong> tap the menu, then <strong>Install app</strong>.</li>
+</ul>
+<p>Open it once with signal so it's saved on your phone. After that it works with no signal at the ground.</p>
+<p><strong>iPhone users:</strong> always open Fair Time from the home-screen icon. iPhones keep the home-screen app's data separate from Safari, so a squad loaded in one won't appear in the other.</p>
+<h3 id="get-the-squad-from-spond">Get the squad from Spond</h3>
+<ol>
+<li>Open the event in Spond.</li>
+<li>Tap the number of people going, then the <strong>Excel</strong> icon.</li>
+<li>Get the file into Fair Time:
+   - <strong>Android:</strong> choose <strong>Fair Time</strong> from the share menu. The squad loads straight in.
+   - <strong>iPhone:</strong> save the file to Files. Open Fair Time and tap <strong>Import Spond file</strong>.</li>
+</ol>
+<p>Fair Time reads only names and responses. Contact details, addresses and dates of birth in the Spond file are ignored and never stored.</p>
+<p>No Spond file? Tap <strong>Paste names</strong> and paste a list, one name per line.</p>
+<h3 id="check-the-squad">Check the squad</h3>
+<p>Everyone appears on the <strong>Squad</strong> screen, marked as one of:</p>
+<table>
+<thead>
+<tr>
+<th>Mark</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Going</strong></td>
+<td>Said yes in Spond</td>
+</tr>
+<tr>
+<td><strong>Late</strong></td>
+<td>Didn't answer, or might be late. They start as "not arrived" and join in when you tap them.</td>
+</tr>
+<tr>
+<td><strong>Out</strong></td>
+<td>Can't make it. Left out of the teams.</td>
+</tr>
+</tbody>
+</table>
+<p>Tap to change anyone's mark. Add a missing player at the bottom.</p>
+<hr />
+<h2 id="2-setting-up-teams">2. Setting up teams</h2>
+<p>On the <strong>Setup</strong> screen:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Teams</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Players on the pitch</td>
+<td>9</td>
+</tr>
+<tr>
+<td>Minutes per game</td>
+<td>16</td>
+</tr>
+<tr>
+<td>Games per team</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Halves per game</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Full reshuffle at half-time and between games</td>
+<td>On (recommended)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="choosing-a-substitution-plan">Choosing a substitution plan</h3>
+<p>Fair Time tries each plan against a whole match day before you pick, and shows how each one would turn out:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>What it tells you</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Fairness gap</strong></td>
+<td>The difference between the most and least time played across the day, if nobody drops out. Smaller is fairer.</td>
+</tr>
+<tr>
+<td><strong>Stoppages</strong></td>
+<td>How many times you'll be subbing during play. Half-time and between games don't count.</td>
+</tr>
+<tr>
+<td><strong>Longest rest</strong></td>
+<td>The longest anyone sits on the bench in one go.</td>
+</tr>
+</tbody>
+</table>
+<p>The plan marked <strong>Best</strong> balances fairness against disruption. For example, with 13 players and 9 on the pitch, "Swap 4 every 5 min" gives about a 3-minute gap with 6 stoppages. "Swap 4 every 2 min" gets the gap down to 2 minutes, but means 17 stoppages.</p>
+<h3 id="splitting-the-squad">Splitting the squad</h3>
+<ul>
+<li><strong>Split A to Z</strong> or <strong>Shuffle</strong> to make the teams.</li>
+<li>Tap a name to move that player to the other team.</li>
+<li>Rename teams by tapping the team name.</li>
+</ul>
+<p>Tap <strong>Start match day</strong> when you're ready.</p>
+<hr />
+<h2 id="3-on-the-touchline">3. On the touchline</h2>
+<h3 id="the-match-screen">The Match screen</h3>
+<p>The clock is at the top, with a countdown to the next change. Below it, every player is shown as a coloured card:</p>
+<table>
+<thead>
+<tr>
+<th>Colour</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🟩 Green</td>
+<td>On the pitch</td>
+</tr>
+<tr>
+<td>🟥 Red</td>
+<td>On the pitch, coming off next</td>
+</tr>
+<tr>
+<td>🟨 Amber</td>
+<td>On the bench, going on next</td>
+</tr>
+<tr>
+<td>🟦 Blue</td>
+<td>On the bench</td>
+</tr>
+<tr>
+<td>⬜ Grey</td>
+<td>Not available (injured, gone home, not arrived)</td>
+</tr>
+</tbody>
+</table>
+<p>Each card shows the minutes played so far. It also shows how far that player is ahead (+) or behind (-) their fair share. The <strong>Next change</strong> list always shows exactly who swaps next.</p>
+<p>With two teams on one phone, use the tabs at the top. A red dot on a tab means that team has a change due.</p>
+<h3 id="running-a-game">Running a game</h3>
+<ol>
+<li>Tap <strong>Kick off</strong>.</li>
+<li>When a change is due, the phone beeps and a full-screen alert shows the pairs: <strong>coming off</strong> on the left, <strong>going on</strong> on the right.</li>
+<li>Make the swaps, then tap <strong>Done</strong>.
+   - Ball not dead yet? Tap <strong>Wait 30 sec</strong>.
+   - Want to keep a pair on? Tap that pair to leave it out.
+   - Not the right moment at all? Tap <strong>Skip this change</strong>.</li>
+<li>Stoppage before the change is due? Tap <strong>Sub now</strong> to do it early.</li>
+<li>When time is up, the clock turns red but keeps running. Tap <strong>Half-time</strong> or <strong>Full-time</strong> when the referee blows.</li>
+<li>At half-time and between games, Fair Time suggests a bigger reshuffle to even things out. Check it, then tap <strong>Done</strong>.</li>
+</ol>
+<p><strong>Pause</strong> stops the clock for long stoppages. <strong>Undo</strong> reverses your last action if you tap the wrong thing.</p>
+<p>The screen stays on while a game is running. Keep the sound on: iPhones don't vibrate for web apps.</p>
+<hr />
+<h2 id="4-when-things-change">4. When things change</h2>
+<p>Tap any player's card for options.</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>What to tap</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Injured</td>
+<td><strong>Injured</strong></td>
+<td>They come off and the bench player furthest behind comes on straight away.</td>
+</tr>
+<tr>
+<td>Fit again</td>
+<td><strong>Fit to play again</strong></td>
+<td>They go to the bench and are prioritised, as they're now behind.</td>
+</tr>
+<tr>
+<td>Head knock</td>
+<td><strong>Suspected concussion</strong></td>
+<td>They're out for the rest of the day and can't be put back by accident.</td>
+</tr>
+<tr>
+<td>Arrives late</td>
+<td><strong>Arrived</strong></td>
+<td>They join the bench and start earning fair time from that moment.</td>
+</tr>
+<tr>
+<td>Goes home early</td>
+<td><strong>Gone home</strong></td>
+<td>Removed from the rotation.</td>
+</tr>
+<tr>
+<td>Opposition short</td>
+<td><strong>Lend to the opposition</strong></td>
+<td>Their time still counts as playing.</td>
+</tr>
+<tr>
+<td>Manual swap</td>
+<td>Pick a name under <strong>Swap off for</strong> or <strong>Bring on for</strong></td>
+<td>Swaps just those two.</td>
+</tr>
+<tr>
+<td>Move between teams</td>
+<td><strong>Move to</strong> (before kick-off or at full-time)</td>
+<td>Moves them with their minutes.</td>
+</tr>
+<tr>
+<td>Not on the list at all</td>
+<td><strong>Add player</strong> at the bottom</td>
+<td>Adds them to the bench.</td>
+</tr>
+</tbody>
+</table>
+<p>To change the plan mid-game, for example in heavy rain or with more players than expected, tap <strong>Sub plan</strong>.</p>
+<h3 id="how-fairness-works">How fairness works</h3>
+<p>Fair Time doesn't follow a fixed rota, which is why it copes when plans fall apart. It shares the pitch time evenly among whoever is available at each moment. At every change, it brings on the bench players furthest behind and takes off those furthest ahead.</p>
+<p>So a player who arrives in game 2 isn't "owed" game 1. An injured player isn't owed the time they were off either.</p>
+<hr />
+<h2 id="5-after-the-games">5. After the games</h2>
+<p>At full-time, each game gets a quick recap. After the last game, open <strong>Summary</strong> for the whole day:</p>
+<ul>
+<li>A plain-English list of what happened, for example:</li>
+<li>"Josh was injured 4:06 into game 1 and didn't return."</li>
+<li>"Sam and Alfie got 1 minute more than their fair share."</li>
+<li>A table of minutes for every player in every game, with anyone outside the threshold highlighted.</li>
+</ul>
+<p>Buttons at the top of the Summary:</p>
+<ul>
+<li><strong>Share summary</strong> sends the text to WhatsApp, email or anywhere else.</li>
+<li><strong>Export CSV</strong> gives you the minutes as a spreadsheet.</li>
+<li><strong>Backup (JSON)</strong> saves the whole session. Use <strong>Menu &gt; Restore a backup</strong> to load it on another phone.</li>
+</ul>
+<h3 id="starting-next-week">Starting next week</h3>
+<p><strong>Menu &gt; Start a new session</strong> clears everything on the phone. It warns you first and offers a backup, so export anything you want to keep.</p>
+<hr />
+<h2 id="6-good-to-know">6. Good to know</h2>
+<ul>
+<li><strong>One phone per team</strong> works best if coaches are on different pitches. Each phone keeps its own data; there's no syncing between phones yet.</li>
+<li><strong>Everything stays on your phone.</strong> Nothing is sent to a server, and no player data is stored online.</li>
+<li><strong>No signal at the ground is fine</strong>, as long as you've opened the app once beforehand.</li>
+<li><strong>Reloading or locking the phone is safe.</strong> The clock keeps correct time and nothing is lost.</li>
+<li><strong>Changing the "flag anyone this far from fair share" setting</strong> (in Setup) controls what the summary highlights. The default is 1 minute.</li>
+</ul>
+<h3 id="not-in-this-version-yet">Not in this version yet</h3>
+<ul>
+<li>Position rules, such as always keeping enough scrum-trained players on.</li>
+<li>Tracking fairness across a whole season rather than one day.</li>
+<li>Live sync between two coaches' phones.</li>
+<li>Pulling the squad directly from Spond, rather than via the Excel file.</li>
+</ul>
+<hr />
+<h2 id="feedback">Feedback</h2>
+<p>This was built for our age group, and we'd like it to work for every team at the club. After you've used it on a match day, please tell us:</p>
+<ol>
+<li><strong>Did it keep game time fair?</strong> Did the summary match how the day actually felt?</li>
+<li><strong>Was it usable on the touchline?</strong> Was anything hard to read, too small, or too slow in the moment?</li>
+<li><strong>What went wrong?</strong> Include the phone type (iPhone or Android) and what you tapped, if you can remember.</li>
+<li><strong>Which plan did you use</strong>, and would you pick it again?</li>
+<li><strong>What's missing?</strong> Which feature from "Not in this version yet", or anything else, would make the biggest difference to your team?</li>
+</ol>
+<p><strong>How to send it:</strong></p>
+<ul>
+<li>Raise an issue on GitHub: <code>https://github.com/&lt;your-username&gt;/fair-time/issues</code></li>
+<li>Or message <code>&lt;contact name&gt;</code> directly.</li>
+</ul>
+<p>Screenshots help a lot, especially of the Summary screen or anything that looks wrong.</p>
+<p>Thank you for trying it.</p>
+    </main>
+    <script>
+      try {
+        const s = JSON.parse(localStorage.getItem("wimborne-fairtime-v1") || "{}");
+        if (s.theme) document.documentElement.dataset.theme = s.theme;
+      } catch (e) {}
+      document.querySelectorAll("main table").forEach((t) => {
+        const w = document.createElement("div");
+        w.className = "tbl";
+        t.parentNode.insertBefore(w, t);
+        w.appendChild(t);
+      });
+    </script>
+  </body>
+</html>

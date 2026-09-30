@@ -1,9 +1,10 @@
 // Bump VERSION on every release so phones pick up the new app shell.
-const VERSION = "fairtime-v1.2.0";
+const VERSION = "fairtime-v1.3.0";
 const SHARE = "fairtime-share";
 const SHELL = [
   "./",
   "./index.html",
+  "./guide.html",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

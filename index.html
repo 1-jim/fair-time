@@ -718,6 +718,9 @@
         color: var(--muted);
         margin-top: 18px;
       }
+      .legend a {
+        color: inherit;
+      }
       .legend i {
         display: inline-block;
         width: 12px;
@@ -1777,6 +1780,7 @@
               <label class="btn primary file">Import Spond file<input type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" data-ch="importFile"></label>
               <button class="btn" data-a="modal" data-m="paste">Paste names</button>
             </div>
+            <p class="small" style="margin:12px 0 0">New to Fair Time? <a href="guide.html">Read the coach's guide</a>.</p>
             <details style="margin-top:12px"><summary>How to export from Spond</summary>
               <ol>
                 <li>Open the event in Spond.</li>
@@ -1828,7 +1832,7 @@
               `<tr class="pick ${r === cur ? "sel" : ""}" data-a="${action}" data-k="${r.k}" data-i="${r.iv}"><td>${stratLabel(r.k, r.iv)}${i === 0 ? '<span class="rec">Best</span>' : ""}</td><td>${fmt(r.spread)}</td><td>${r.stops}</td><td>${fmt(r.maxBench)}</td></tr>`,
           )
           .join("")}</tbody></table></div>
-          <p class="small muted">Fairness gap is the difference between most and least time played across the whole day if nobody drops out. Stoppages count changes during play (breaks are free).</p>`;
+          <p class="small muted"><a href="guide.html#choosing-a-substitution-plan">How to choose a plan</a>. Fairness gap is the difference between most and least time played across the whole day if nobody drops out. Stoppages count changes during play (breaks are free).</p>`;
       }
       function viewSetup() {
         const P = S.params;
@@ -1985,7 +1989,7 @@
         ).join("")}</div>`;
         h += `<h3>Bench <span class="n">${L.B.length}</span></h3>${L.B.length ? `<div class="chips">${L.B.map((pid) => (onN.has(pid) ? chip(t, pid, "next", "On next") : chip(t, pid, "bench", ""))).join("")}</div>` : `<p class="muted">Nobody on the bench.</p>`}`;
         if (L.O.length) h += `<h3>Not available <span class="n">${L.O.length}</span></h3><div class="chips">${L.O.map((pid) => chip(t, pid, "out", "")).join("")}</div>`;
-        h += `<div class="legend"><span><i style="background:var(--field)"></i>On the pitch</span><span><i style="background:var(--bench)"></i>Bench</span><span><i style="background:var(--next)"></i>On next</span><span><i style="background:var(--off)"></i>Off next</span><span>Numbers: time played, then ahead (+) or behind (-) fair share</span></div>`;
+        h += `<div class="legend"><span><i style="background:var(--field)"></i>On the pitch</span><span><i style="background:var(--bench)"></i>Bench</span><span><i style="background:var(--next)"></i>On next</span><span><i style="background:var(--off)"></i>Off next</span><span>Numbers: time played, then ahead (+) or behind (-) fair share</span><a href="guide.html#3-on-the-touchline">Match day help</a></div>`;
         h += `<div class="bar"><div class="row"><button class="btn" data-a="undo" ${t.undo.length ? "" : "disabled"}>Undo</button><button class="btn" data-a="stratOpen">Sub plan</button><button class="btn" data-a="modal" data-m="add">Add player</button></div></div>`;
         return h;
       }
@@ -2083,6 +2087,7 @@
           inner = `<h2>Paste names</h2><p class="muted">One name per line, or separated by commas. Everyone pasted is marked as going.</p><textarea id="pasteBox"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="pasteApply">Add names</button></div>`;
         } else if (m === "menu") {
           inner = `<h2>Menu</h2><div class="opts">
+            <a class="btn primary" href="guide.html">How to use Fair Time</a>
             ${S.started ? '<button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export minutes (CSV)</button>' : ""}
             <button class="btn" data-a="exportJSON">Back up this session (JSON)</button>
             <label class="btn file">Restore a backup<input type="file" accept=".json,application/json" data-ch="restoreFile"></label>
