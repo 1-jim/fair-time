@@ -628,7 +628,7 @@
       .tchip.lifted {
         opacity: 0.3;
       }
-      .ghost {
+      .dragghost {
         position: fixed;
         z-index: 100;
         pointer-events: none;
@@ -2413,7 +2413,7 @@
         UI.teamSel = null;
         document.querySelectorAll(".tchip.sel").forEach((e) => e.classList.remove("sel"));
         const g = chip.cloneNode(true);
-        g.classList.add("ghost");
+        g.classList.add("dragghost");
         g.classList.remove("sel");
         g.style.left = DRAG.x + "px";
         g.style.top = DRAG.y + "px";

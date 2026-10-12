@@ -104,6 +104,21 @@ test("concussion cannot be cleared by the normal return option", async ({ page }
   await expect(page.getByText("Clear: entered by mistake")).toBeVisible();
 });
 
+test("match controls are tappable where they are drawn", async ({ page }) => {
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  await tap(page, "[data-a=startDay]");
+  await tap(page, "[data-a=kickoff]");
+  // A tap lands on whatever is under the finger, so each button must be the top element at its own centre
+  for (const a of ["pause", "subNow", "halftime"]) {
+    const hit = await page.locator(`[data-a=${a}]`).evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest("[data-a]") === el;
+    });
+    expect(hit, a).toBe(true);
+  }
+});
+
 test("works offline once loaded and accepts the Android share target", async ({ page, context }) => {
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
@@ -200,11 +215,11 @@ test.describe("team builder", () => {
     const ay = a.y + a.height / 2;
     await ev("pointerdown", ax, ay);
     await page.clock.runFor(400);
-    await expect(page.locator(".ghost")).toHaveCount(1);
+    await expect(page.locator(".dragghost")).toHaveCount(1);
     await ev("pointermove", b.x + b.width / 2, b.y + b.height / 2);
     await ev("pointerup", b.x + b.width / 2, b.y + b.height / 2);
     expect(await teamOf(page, name)).toBe(1);
-    await expect(page.locator(".ghost")).toHaveCount(0);
+    await expect(page.locator(".dragghost")).toHaveCount(0);
   });
 
   test("a quick touch swipe scrolls rather than dragging", async ({ page }) => {
@@ -218,7 +233,7 @@ test.describe("team builder", () => {
       [a.x + a.width / 2, a.y + a.height / 2],
     );
     await page.clock.runFor(400);
-    await expect(page.locator(".ghost")).toHaveCount(0);
+    await expect(page.locator(".dragghost")).toHaveCount(0);
   });
 
   test("re-splitting after manual changes can be undone", async ({ page }) => {
