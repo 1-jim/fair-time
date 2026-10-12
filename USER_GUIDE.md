@@ -108,6 +108,8 @@ Each team shows how many players it has, how many have confirmed, and the bench 
 
 When the teams look right, tap **Lock teams and start**. Teams are fixed from then on, apart from moving a player between teams before a kick-off or at full-time on the Match screen.
 
+**Made a mistake after locking?** Until any team kicks off its first game, tap **Change setup** on the Match screen (or **Unlock to make changes** on the Setup or Squad screen). That unlocks the squad, settings, sub plan and teams. Your teams are kept as they were, so you only fix what's wrong, then tap **Lock teams and start** again. Anything you'd already marked on the Match screen, like a no-show, is cleared. Once anyone kicks off, setup stays locked.
+
 ---
 
 ## 3. On the touchline
