@@ -1710,6 +1710,14 @@
         S.view = "game";
         S.active = 0;
       }
+      // Setup can be unlocked until any team kicks off its first game
+      const canUnlock = () =>
+        S.started &&
+        S.teams.every((tm) => {
+          const t = S.T[tm.id];
+          return t && t.g === 0 && t.stage === "pre" && !t.acc && !t.base;
+        });
+      const unlockBtn = (label) => `<button class="btn" data-a="modal" data-m="unlock">${label}</button>`;
       function pushUndo(t) {
         const snap = clone(Object.assign({}, t, { undo: undefined }));
         t.undo.push(snap);
@@ -1919,7 +1927,9 @@
         const lock = S.started;
         let h = `<img class="crest ${ids.length ? "sm" : ""}" src="${LOGO}" alt="Wimborne RFC crest"><h2>${esc(S.eventName || "Match day squad")}</h2>`;
         if (S.eventDate) h += `<p class="muted">${esc(S.eventDate)}</p>`;
-        if (lock) {
+        if (lock && canUnlock()) {
+          h += `<div class="note">Teams are locked, so the squad is too. Nobody has kicked off yet, so you can still unlock to make changes.<div style="margin-top:8px">${unlockBtn("Unlock to make changes")}</div></div>`;
+        } else if (lock) {
           h += `<div class="note">Match day is under way, so the squad is locked. Add a late player from the Match screen, or start a new session from the menu.</div>`;
         } else {
           h += `<div class="panel">
@@ -1991,7 +2001,9 @@
         const lock = S.started;
         if (!S.teams.length && S.order.length) splitTeams("az");
         let h = `<h2>Setup</h2>`;
-        if (lock) h += `<div class="note">Match day is under way. These settings are locked; change the substitution plan per team from the Match screen.</div>`;
+        if (lock && canUnlock())
+          h += `<div class="note">Teams are locked. Nobody has kicked off yet, so you can still change the settings, sub plan or teams.<div style="margin-top:8px">${unlockBtn("Unlock to make changes")}</div></div>`;
+        else if (lock) h += `<div class="note">Match day is under way. These settings are locked; change the substitution plan per team from the Match screen.</div>`;
         h += `<div class="panel">
           ${stepper("Teams", "teams", "", lock)}
           ${stepper("Players on the pitch", "onField", "", lock)}
@@ -2111,6 +2123,7 @@
           <div class="muted" style="color:rgba(255,255,255,.8)">${stratLabel(t.k, t.interval)}</div>
           <div class="row">${ctr}</div></section>`;
         if (ot) h += `<div class="note bad">Time's up. Tap ${P.halves > 1 && t.half === 1 ? "Half-time" : "Full-time"} when the whistle goes.</div>`;
+        if (canUnlock()) h += `<div class="note small">Made a mistake? Until anyone kicks off you can still change the teams, settings or sub plan. ${unlockBtn("Change setup")}</div>`;
         const fill = fillPairs(t);
         if (["running", "paused", "pre", "ht"].includes(t.stage)) {
           if (fill.length) {
@@ -2258,6 +2271,8 @@
             <button class="btn" data-a="closeModal">Close</button></div>`;
         } else if (m === "new") {
           inner = `<h2>Start a new session?</h2><div class="note bad">This clears the squad, teams and every minute recorded on this device. It can't be undone.</div><div class="opts"><button class="btn" data-a="exportJSON">Back up first (JSON)</button><button class="btn warn" data-a="newConfirm">Clear and start new</button><button class="btn" data-a="closeModal">Keep this session</button></div>`;
+        } else if (m === "unlock") {
+          inner = `<h2>Change the setup?</h2><p>This unlocks the squad, settings, sub plan and teams so you can change them. Then tap <b>Lock teams and start</b> again.</p><div class="note">Anything you've marked on the Match screen, like no-shows or injuries, is cleared. Players you added there stay in the squad.</div><div class="opts"><button class="btn warn" data-a="unlockConfirm">Unlock setup</button><button class="btn" data-a="closeModal">Keep it locked</button></div>`;
         } else if (m === "add") {
           inner = `<h2>Add a player</h2><p class="muted">They go on the bench with a fair share counted from now.</p><div class="add"><input id="addLate" placeholder="Name" autocomplete="off"></div><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="addLate">Add to ${esc(S.teams[S.active].name)}</button></div>`;
         } else if (m === "strat") {
@@ -2919,6 +2934,17 @@
         },
         theme: () => {
           S.theme = S.theme === "" ? "light" : S.theme === "light" ? "dark" : "";
+        },
+        unlockConfirm: () => {
+          UI.modal = null;
+          if (!canUnlock()) return toast("A game has kicked off, so setup can't be unlocked");
+          S.started = false;
+          S.T = {};
+          S.active = 0;
+          S.view = "setup";
+          UI.teamSel = null;
+          UI.teamUndo = [];
+          toast("Setup unlocked. Make your changes, then lock teams again.");
         },
         newConfirm: () => {
           const keep = { sound: S.sound, theme: S.theme };

@@ -119,6 +119,32 @@ test("match controls are tappable where they are drawn", async ({ page }) => {
   }
 });
 
+test("setup can be unlocked and changed until anyone kicks off", async ({ page }) => {
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  await tap(page, '[data-a=param][data-k=teams][data-s="1"]');
+  const teams = await page.evaluate(() => JSON.stringify(S.teams));
+  await tap(page, "[data-a=startDay]");
+
+  // From the Match screen, before kick-off
+  await tap(page, "[data-m=unlock]");
+  await tap(page, "[data-a=unlockConfirm]");
+  expect(await page.evaluate(() => S.started)).toBe(false);
+  expect(await page.evaluate(() => JSON.stringify(S.teams))).toBe(teams);
+  await expect(page.locator("[data-a=startDay]")).toBeVisible();
+  await expect(page.locator(".tchip:not([disabled])").first()).toBeVisible();
+
+  // Change the settings, lock again, then kick off one team: no more unlocking
+  await tap(page, '[data-a=param][data-k=teams][data-s="-1"]');
+  await tap(page, "[data-a=startDay]");
+  expect(await page.evaluate(() => S.teams.length)).toBe(2);
+  await tap(page, "[data-a=kickoff]");
+  await expect(page.locator("[data-m=unlock]")).toHaveCount(0);
+  await tap(page, "[data-a=go][data-v=setup]");
+  await expect(page.locator("[data-m=unlock]")).toHaveCount(0);
+  await expect(page.getByText("Match day is under way")).toBeVisible();
+});
+
 test("works offline once loaded and accepts the Android share target", async ({ page, context }) => {
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
