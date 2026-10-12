@@ -260,6 +260,9 @@
         min-height: 62px;
         font-size: 26px;
         width: 100%;
+        white-space: normal;
+        line-height: 1.1;
+        padding: 8px 16px;
       }
       .btn.chalk {
         background: #fff;
@@ -539,19 +542,124 @@
       /* Teams */
       .teams {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(var(--n, 2), minmax(150px, 1fr));
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+      @media (max-width: 520px) {
+        .teams {
+          grid-template-columns: repeat(var(--n, 2), minmax(140px, 1fr));
+        }
+        .teams.many {
+          grid-template-columns: repeat(var(--n, 2), minmax(118px, 1fr));
+        }
       }
       .team {
-        border: 1px solid var(--line);
+        border: 2px solid var(--line);
         border-radius: 12px;
-        padding: 12px;
+        padding: 10px;
         background: var(--surface);
+        min-width: 0;
+        transition: border-color 0.1s, background 0.1s;
+      }
+      .team.drop {
+        border-color: var(--field);
+        background: var(--field-t);
       }
       .team .inp {
         width: 100%;
-        font: 700 22px var(--cond);
-        margin-bottom: 6px;
+        min-width: 0;
+        font: 700 21px var(--cond);
+        margin-bottom: 4px;
+        padding: 6px 8px;
+      }
+      .tstats {
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.3;
+      }
+      .tlist {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 8px;
+        min-height: 60px;
+      }
+      .tchip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        min-height: 44px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        font: 600 17px/1.1 var(--cond);
+        text-align: left;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+        touch-action: pan-y;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        cursor: grab;
+      }
+      .tchip::before {
+        content: "";
+        flex: 0 0 8px;
+        height: 18px;
+        background: radial-gradient(circle, var(--muted) 1.2px, transparent 1.6px) 0 0 / 4px 4px;
+        opacity: 0.7;
+      }
+      .tchip.maybe {
+        border-color: var(--next);
+        background: var(--next-t);
+      }
+      .tchip.sel {
+        outline: 3px solid var(--bench);
+        outline-offset: 1px;
+      }
+      .tchip.swapto {
+        outline: 3px dashed var(--field);
+        outline-offset: 1px;
+      }
+      .tchip.lifted {
+        opacity: 0.3;
+      }
+      .dragghost {
+        position: fixed;
+        z-index: 100;
+        pointer-events: none;
+        width: 170px;
+        transform: translate(-50%, -60%) rotate(-3deg) scale(1.05);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+        background: var(--surface);
+        cursor: grabbing;
+      }
+      .movehere {
+        width: 100%;
+        min-height: 44px;
+        margin-top: 8px;
+        border-radius: 8px;
+        border: 2px dashed var(--bench);
+        background: var(--bench-t);
+        color: var(--ink);
+        font: 600 16px var(--cond);
+      }
+      .tbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .tbar .btn {
+        flex: 1 1 auto;
+      }
+      body.dragging,
+      body.dragging * {
+        cursor: grabbing !important;
       }
       .mini {
         display: flex;
@@ -1073,7 +1181,7 @@
         } catch (e) {}
       }
       let S = load() || fresh();
-      const UI = { sheet: null, modal: null, simCache: {}, strat: null, squadFilter: [], squadKeep: [] };
+      const UI = { sheet: null, modal: null, simCache: {}, strat: null, squadFilter: [], squadKeep: [], teamSel: null, teamUndo: [] };
       let DL = null;
       if (window.claude && typeof window.claude.use === "function") {
         window.claude
@@ -1541,6 +1649,7 @@
         if (res.event) S.eventName = res.event;
         if (res.date) S.eventDate = res.date;
         S.teams = [];
+        UI.teamUndo = [];
       }
 
       /* ---------- Teams ---------- */
@@ -1910,22 +2019,31 @@
         }
         h += `<h3>Teams</h3>`;
         if (!lock) {
-          h += `<div class="row" style="margin-bottom:10px"><button class="btn" data-a="split" data-m="az">Split A to Z</button><button class="btn" data-a="split" data-m="shuffle">Shuffle</button></div><p class="small muted">Tap a name to move them to the next team. Amber names haven't confirmed and start as not arrived.</p>`;
+          h += `<div class="tbar"><button class="btn" data-a="split" data-m="az">Split A to Z</button><button class="btn" data-a="split" data-m="shuffle">Shuffle</button><button class="btn" data-a="teamUndo" ${UI.teamUndo.length ? "" : "disabled"}>Undo</button></div>
+            <p class="small muted">Drag a name to another team, or drop it on a player to swap them. On a phone, press and hold first. Or tap a name, then tap where it goes. Amber names haven't confirmed yet.</p>`;
         }
-        h += `<div class="teams">${S.teams
+        const selTeam = UI.teamSel ? S.teams.findIndex((x) => x.pids.includes(UI.teamSel)) : -1;
+        h += `<div class="teams ${S.teams.length > 2 ? "many" : ""}" style="--n:${S.teams.length}">${S.teams
           .map((tm, i) => {
             const g = tm.pids.filter((p) => S.players[p].resp === "going").length;
             const warn = g < P.onField ? `<div class="note bad small">Only ${g} confirmed for ${P.onField} spots.</div>` : "";
-            return `<div class="team"><input class="inp" value="${esc(tm.name)}" data-ch="teamName" data-i="${i}" aria-label="Team name" ${lock ? "disabled" : ""}>
-              <div class="muted small">${tm.pids.length} players, ${g} confirmed, bench of ${Math.max(0, g - P.onField)}</div>${warn}
-              <div class="mini">${tm.pids
+            const here =
+              !lock && UI.teamSel && selTeam !== i
+                ? `<button class="movehere" data-a="teamMoveHere" data-i="${i}">Move ${esc(nm(UI.teamSel).split(" ")[0])} here</button>`
+                : "";
+            return `<div class="team" data-ti="${i}"><input class="inp" value="${esc(tm.name)}" data-ch="teamName" data-i="${i}" aria-label="Team name" ${lock ? "disabled" : ""}>
+              <div class="tstats">${tm.pids.length} players, ${g} confirmed<br>Bench of ${Math.max(0, g - P.onField)}</div>${warn}${here}
+              <div class="tlist">${tm.pids
                 .slice()
                 .sort((a, b) => nm(a).localeCompare(nm(b)))
-                .map((p) => `<button class="${S.players[p].resp === "maybe" ? "maybe" : ""}" data-a="moveChip" data-p="${p}" ${lock ? "disabled" : ""}>${esc(nm(p))}</button>`)
+                .map(
+                  (p) =>
+                    `<button class="tchip ${S.players[p].resp === "maybe" ? "maybe" : ""} ${UI.teamSel === p ? "sel" : ""}" data-tp="${p}" ${lock ? "disabled" : ""} aria-pressed="${UI.teamSel === p}">${esc(nm(p))}</button>`,
+                )
                 .join("")}</div></div>`;
           })
           .join("")}</div>`;
-        if (!lock) h += `<div style="margin-top:18px"><button class="btn primary big" data-a="startDay" ${S.teams.length ? "" : "disabled"}>Start match day</button></div>`;
+        if (!lock) h += `<div style="margin-top:18px"><button class="btn primary big" data-a="startDay" ${S.teams.length ? "" : "disabled"}>Lock teams and start</button></div>`;
         return h;
       }
       function dueText(t) {
@@ -2244,6 +2362,190 @@
       }
       setInterval(tick, 250);
 
+      /* ---------- Team builder: drag, drop, swap, tap ---------- */
+      function teamSnap() {
+        UI.teamUndo.push(S.teams.map((t) => t.pids.slice()));
+        if (UI.teamUndo.length > 30) UI.teamUndo.shift();
+      }
+      // Move pid to team ti, or swap with withPid when dropped on a player
+      function teamMove(pid, ti, withPid) {
+        const from = S.teams.findIndex((t) => t.pids.includes(pid));
+        if (from < 0) return;
+        if (withPid) {
+          const to = S.teams.findIndex((t) => t.pids.includes(withPid));
+          if (to < 0 || to === from) return;
+          teamSnap();
+          S.teams[from].pids = S.teams[from].pids.map((x) => (x === pid ? withPid : x));
+          S.teams[to].pids = S.teams[to].pids.map((x) => (x === withPid ? pid : x));
+          toast(`Swapped ${nm(pid)} and ${nm(withPid)}`);
+        } else {
+          if (ti === from || !S.teams[ti]) return;
+          teamSnap();
+          S.teams[from].pids = S.teams[from].pids.filter((x) => x !== pid);
+          S.teams[ti].pids.push(pid);
+          toast(`${nm(pid)} moved to ${S.teams[ti].name}`);
+        }
+        save();
+      }
+      const DRAG = { pid: null, x0: 0, y0: 0, timer: null, active: false, ghost: null, target: null, type: "", raf: 0, x: 0, y: 0, suppress: false };
+      function dragTargetAt(x, y) {
+        const el = document.elementFromPoint(x, y);
+        if (!el) return null;
+        const chip = el.closest(".tchip");
+        const col = el.closest(".team[data-ti]");
+        if (!col) return null;
+        const ti = +col.dataset.ti;
+        if (chip && chip.dataset.tp !== DRAG.pid) {
+          const sameTeam = S.teams[ti].pids.includes(DRAG.pid);
+          if (!sameTeam) return { ti, swap: chip.dataset.tp, el: chip, col };
+        }
+        return { ti, swap: null, el: null, col };
+      }
+      function dragHighlight(t) {
+        document.querySelectorAll(".team.drop, .tchip.swapto").forEach((e) => e.classList.remove("drop", "swapto"));
+        if (!t) return;
+        const fromTeam = S.teams.findIndex((x) => x.pids.includes(DRAG.pid));
+        if (t.swap) t.el.classList.add("swapto");
+        else if (t.ti !== fromTeam) t.col.classList.add("drop");
+      }
+      function dragStart(chip) {
+        DRAG.active = true;
+        UI.teamSel = null;
+        document.querySelectorAll(".tchip.sel").forEach((e) => e.classList.remove("sel"));
+        const g = chip.cloneNode(true);
+        g.classList.add("dragghost");
+        g.classList.remove("sel");
+        g.style.left = DRAG.x + "px";
+        g.style.top = DRAG.y + "px";
+        document.body.appendChild(g);
+        DRAG.ghost = g;
+        chip.classList.add("lifted");
+        document.body.classList.add("dragging");
+        if (navigator.vibrate) navigator.vibrate(12);
+        DRAG.raf = requestAnimationFrame(dragAutoScroll);
+      }
+      function dragAutoScroll() {
+        if (!DRAG.active) return;
+        // Only scroll once the finger has actually moved, not while holding still to pick up
+        if (Math.hypot(DRAG.x - DRAG.x0, DRAG.y - DRAG.y0) < 16) {
+          DRAG.raf = requestAnimationFrame(dragAutoScroll);
+          return;
+        }
+        const edge = 70;
+        const h = window.innerHeight;
+        let dy = 0;
+        if (DRAG.y < edge + 60) dy = -Math.ceil((edge + 60 - DRAG.y) / 6);
+        else if (DRAG.y > h - edge) dy = Math.ceil((DRAG.y - (h - edge)) / 6);
+        if (dy) window.scrollBy(0, dy);
+        const box = document.querySelector(".teams");
+        if (box && box.scrollWidth > box.clientWidth) {
+          const r = box.getBoundingClientRect();
+          if (DRAG.x < r.left + 40) box.scrollLeft -= 8;
+          else if (DRAG.x > r.right - 40) box.scrollLeft += 8;
+        }
+        if (dy) {
+          DRAG.target = dragTargetAt(DRAG.x, DRAG.y);
+          dragHighlight(DRAG.target);
+        }
+        DRAG.raf = requestAnimationFrame(dragAutoScroll);
+      }
+      function dragEnd(commit) {
+        clearTimeout(DRAG.timer);
+        cancelAnimationFrame(DRAG.raf);
+        const was = DRAG.active;
+        if (DRAG.ghost) DRAG.ghost.remove();
+        document.body.classList.remove("dragging");
+        dragHighlight(null);
+        const t = DRAG.target;
+        const pid = DRAG.pid;
+        Object.assign(DRAG, { pid: null, active: false, ghost: null, target: null, timer: null });
+        if (!was) return;
+        DRAG.suppress = true;
+        setTimeout(() => (DRAG.suppress = false), 400);
+        if (commit && t) teamMove(pid, t.ti, t.swap);
+        render();
+      }
+      document.addEventListener("pointerdown", (e) => {
+        const chip = e.target.closest(".tchip");
+        if (!chip || chip.disabled || S.started || (e.pointerType === "mouse" && e.button !== 0)) return;
+        DRAG.pid = chip.dataset.tp;
+        DRAG.x0 = DRAG.x = e.clientX;
+        DRAG.y0 = DRAG.y = e.clientY;
+        DRAG.type = e.pointerType;
+        // Touch needs a short hold so normal scrolling still works; a mouse drags straight away
+        if (e.pointerType !== "mouse") DRAG.timer = setTimeout(() => DRAG.pid && dragStart(chip), 280);
+      });
+      function dragMoveTo(x, y) {
+        DRAG.x = x;
+        DRAG.y = y;
+        if (!DRAG.ghost) return;
+        DRAG.ghost.style.left = x + "px";
+        DRAG.ghost.style.top = y + "px";
+        DRAG.target = dragTargetAt(x, y);
+        dragHighlight(DRAG.target);
+      }
+      document.addEventListener("pointermove", (e) => {
+        if (!DRAG.pid) return;
+        if (DRAG.active) return dragMoveTo(e.clientX, e.clientY);
+        DRAG.x = e.clientX;
+        DRAG.y = e.clientY;
+        const moved = Math.hypot(e.clientX - DRAG.x0, e.clientY - DRAG.y0);
+        if (!DRAG.active) {
+          if (DRAG.type === "mouse" && moved > 6) {
+            const chip = document.querySelector(`.tchip[data-tp="${DRAG.pid}"]`);
+            if (chip) dragStart(chip);
+          } else if (DRAG.type !== "mouse" && moved > 10) {
+            clearTimeout(DRAG.timer);
+            DRAG.pid = null;
+          }
+          return;
+        }
+      });
+      document.addEventListener("pointerup", () => DRAG.pid && dragEnd(true));
+      // Some phones cancel the pointer once a finger drag begins; keep the drag alive on touch events
+      document.addEventListener("pointercancel", () => {
+        if (DRAG.pid && !(DRAG.active && DRAG.type !== "mouse")) dragEnd(false);
+      });
+      document.addEventListener(
+        "touchmove",
+        (e) => {
+          if (!DRAG.active) return;
+          e.preventDefault(); // stop the page scrolling under the finger
+          const t = e.touches[0];
+          if (t) dragMoveTo(t.clientX, t.clientY);
+        },
+        { passive: false },
+      );
+      document.addEventListener("touchend", () => DRAG.active && dragEnd(true));
+      document.addEventListener("touchcancel", () => DRAG.active && dragEnd(false));
+      document.addEventListener("contextmenu", (e) => {
+        if (e.target.closest && e.target.closest(".tchip")) e.preventDefault();
+      });
+      // Tap without dragging: select, then tap another team (move) or a player in another team (swap)
+      document.addEventListener(
+        "click",
+        (e) => {
+          const chip = e.target.closest && e.target.closest(".tchip");
+          if (!chip) return;
+          e.stopPropagation();
+          if (DRAG.suppress || chip.disabled) return;
+          const pid = chip.dataset.tp;
+          if (!UI.teamSel || UI.teamSel === pid) {
+            UI.teamSel = UI.teamSel === pid ? null : pid;
+          } else {
+            const a = S.teams.findIndex((t) => t.pids.includes(UI.teamSel));
+            const b = S.teams.findIndex((t) => t.pids.includes(pid));
+            if (a === b) UI.teamSel = pid;
+            else {
+              teamMove(UI.teamSel, b, pid);
+              UI.teamSel = null;
+            }
+          }
+          render();
+        },
+        true,
+      );
+
       /* ---------- Actions ---------- */
       const cur = () => S.T[S.teams[S.active].id];
       const limits = { teams: [1, 6], onField: [3, 15], gameMins: [4, 40], games: [1, 8], halves: [1, 2], outlier: [0.5, 5] };
@@ -2268,6 +2570,7 @@
           if (!UI.squadKeep.includes(d.p)) UI.squadKeep.push(d.p);
           S.players[d.p].resp = d.r;
           S.teams = [];
+          UI.teamUndo = [];
         },
         addSquad: () => {
           const name = $("#addName").value.trim();
@@ -2278,6 +2581,7 @@
           delete S.players[d.p];
           S.order = S.order.filter((x) => x !== d.p);
           S.teams = [];
+          UI.teamUndo = [];
         },
         pasteApply: () => {
           const rows = $("#pasteBox")
@@ -2298,7 +2602,11 @@
           const [lo, hi] = limits[d.k];
           const step = d.k === "outlier" ? 0.5 : 1;
           P[d.k] = Math.min(hi, Math.max(lo, +P[d.k] + step * +d.s));
-          if (d.k === "teams") splitTeams("az");
+          if (d.k === "teams") {
+            teamSnap();
+            splitTeams("az");
+            UI.teamSel = null;
+          }
           const hm = P.gameMins / P.halves;
           if (P.interval >= hm) P.interval = 0;
           S.stratPicked = false;
@@ -2314,13 +2622,34 @@
           S.params.interval = +d.i;
           S.stratPicked = true;
         },
-        split: (d) => splitTeams(d.m),
-        moveChip: (d) => {
-          const i = S.teams.findIndex((t) => t.pids.includes(d.p));
-          S.teams[i].pids = S.teams[i].pids.filter((x) => x !== d.p);
-          S.teams[(i + 1) % S.teams.length].pids.push(d.p);
+        split: (d) => {
+          teamSnap();
+          splitTeams(d.m);
+          UI.teamSel = null;
+          if (UI.teamUndo.length > 1) toast("Teams re-split. Tap Undo to get your changes back.");
         },
-        startDay: () => startDay(),
+        teamUndo: () => {
+          const prev = UI.teamUndo.pop();
+          if (!prev) return;
+          // Rebuild from the snapshot so undoing a change in the number of teams never loses or doubles a player
+          const old = S.teams;
+          S.teams = prev.map((pids, i) => ({ id: "t" + i, name: (old[i] && old[i].name) || "Team " + "ABCDEFGH"[i], pids }));
+          if (S.params.teams !== prev.length) {
+            S.params.teams = prev.length;
+            S.stratPicked = false;
+            UI.simCache = {};
+          }
+          UI.teamSel = null;
+        },
+        teamMoveHere: (d) => {
+          if (UI.teamSel) teamMove(UI.teamSel, +d.i, null);
+          UI.teamSel = null;
+        },
+        startDay: () => {
+          UI.teamSel = null;
+          UI.teamUndo = [];
+          startDay();
+        },
         team: (d) => {
           S.active = +d.i;
         },
