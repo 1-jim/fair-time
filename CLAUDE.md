@@ -42,6 +42,8 @@ UI:
 - Transient UI state lives in `UI`, not `S`.
 - Downloads use the Claude `downloads` capability when present, falling back to an anchor download on Pages.
 
+Team builder (Setup screen, before lock-in): drag uses pointer events with a 280 ms press-and-hold on touch so normal scrolling still works, a mouse drags immediately, and a non-passive `touchmove` listener stops the page scrolling mid-drag. Drop on a team moves, drop on a player in another team swaps, tap-select is the accessible fallback. `UI.teamUndo` holds snapshots of `S.teams[].pids`. No ratings by design (coach feedback: they only want fast manual balancing). CSS class `.swap` belongs to the Match screen, so the drop highlight is `.tchip.swapto`.
+
 Spond import: `readSheets()` handles `.xlsx` with a built-in zip/XML reader (`DecompressionStream`, iOS 16.4+), plus CSV. `parseWorkbook()` accepts Spond's "For import" sheet (Status + Name columns), then the "For print" sheet ("Going (26)" sections), then any sheet with a Name column.
 
 ## Testing

@@ -124,3 +124,119 @@ test("works offline once loaded and accepts the Android share target", async ({ 
   await page.goto("/guide.html");
   await expect(page.locator("h1")).toContainText("coach's guide");
 });
+
+test.describe("team builder", () => {
+  const teamOf = (page, name) =>
+    page.evaluate((n) => {
+      const id = Object.keys(S.players).find((k) => S.players[k].name === n);
+      return S.teams.findIndex((t) => t.pids.includes(id));
+    }, name);
+  const chip = (page, team, n = 0) => page.locator(`.team[data-ti="${team}"] .tchip`).nth(n);
+  async function drag(page, from, to) {
+    const a = await from.boundingBox();
+    const b = await to.boundingBox();
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + a.width / 2 + 10, a.y + a.height / 2 + 10);
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 5 });
+    await page.mouse.up();
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await importSquad(page);
+    await tap(page, "[data-a=toSetup]");
+    await page.locator(".tbar").evaluate((el) => el.scrollIntoView({ block: "start" }));
+  });
+
+  test("drag a player onto another team moves them", async ({ page }) => {
+    const name = await chip(page, 0).textContent();
+    await drag(page, chip(page, 0), page.locator('.team[data-ti="1"] .tstats'));
+    expect(await teamOf(page, name)).toBe(1);
+    await expect(page.locator('.team[data-ti="0"] .tchip')).toHaveCount(13);
+    await expect(page.locator('.team[data-ti="1"] .tchip')).toHaveCount(15);
+  });
+
+  test("drop on a player in the other team swaps them, undo restores", async ({ page }) => {
+    const a = await chip(page, 0, 2).textContent();
+    const b = await chip(page, 1, 1).textContent();
+    await drag(page, chip(page, 0, 2), chip(page, 1, 1));
+    expect(await teamOf(page, a)).toBe(1);
+    expect(await teamOf(page, b)).toBe(0);
+    await expect(page.locator('.team[data-ti="0"] .tchip')).toHaveCount(14);
+    await tap(page, "[data-a=teamUndo]");
+    expect(await teamOf(page, a)).toBe(0);
+    expect(await teamOf(page, b)).toBe(1);
+  });
+
+  test("tap to select, then tap Move here or another player", async ({ page }) => {
+    const a = await chip(page, 0, 1).textContent();
+    await tap(page, '.team[data-ti="0"] .tchip >> nth=1');
+    await expect(page.locator(".tchip.sel")).toHaveCount(1);
+    await tap(page, '.team[data-ti="1"] .movehere');
+    expect(await teamOf(page, a)).toBe(1);
+
+    const b = await chip(page, 0, 0).textContent();
+    const c = await chip(page, 1, 0).textContent();
+    await tap(page, '.team[data-ti="0"] .tchip >> nth=0');
+    await tap(page, '.team[data-ti="1"] .tchip >> nth=0');
+    expect(await teamOf(page, b)).toBe(1);
+    expect(await teamOf(page, c)).toBe(0);
+  });
+
+  test("press and hold then drag works on touch", async ({ page }) => {
+    const from = chip(page, 0, 3);
+    const name = await from.textContent();
+    const a = await from.boundingBox();
+    const b = await page.locator('.team[data-ti="1"] .tstats').boundingBox();
+    const ev = (type, x, y) =>
+      page.evaluate(
+        ([type, x, y]) => {
+          const el = document.elementFromPoint(x, y) || document.body;
+          el.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerType: "touch", isPrimary: true }));
+        },
+        [type, x, y],
+      );
+    const ax = a.x + a.width / 2;
+    const ay = a.y + a.height / 2;
+    await ev("pointerdown", ax, ay);
+    await page.clock.runFor(400);
+    await expect(page.locator(".ghost")).toHaveCount(1);
+    await ev("pointermove", b.x + b.width / 2, b.y + b.height / 2);
+    await ev("pointerup", b.x + b.width / 2, b.y + b.height / 2);
+    expect(await teamOf(page, name)).toBe(1);
+    await expect(page.locator(".ghost")).toHaveCount(0);
+  });
+
+  test("a quick touch swipe scrolls rather than dragging", async ({ page }) => {
+    const a = await chip(page, 0, 3).boundingBox();
+    await page.evaluate(
+      ([x, y]) => {
+        const el = document.elementFromPoint(x, y);
+        el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: x, clientY: y, pointerType: "touch" }));
+        el.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: x, clientY: y + 40, pointerType: "touch" }));
+      },
+      [a.x + a.width / 2, a.y + a.height / 2],
+    );
+    await page.clock.runFor(400);
+    await expect(page.locator(".ghost")).toHaveCount(0);
+  });
+
+  test("re-splitting after manual changes can be undone", async ({ page }) => {
+    const name = await chip(page, 0).textContent();
+    await drag(page, chip(page, 0), page.locator('.team[data-ti="1"] .tstats'));
+    await tap(page, '[data-a=split][data-m="shuffle"]');
+    await tap(page, "[data-a=teamUndo]");
+    expect(await teamOf(page, name)).toBe(1);
+  });
+
+  test("undoing a change in the number of teams keeps every player once", async ({ page }) => {
+    const placed = () => page.evaluate(() => S.teams.flatMap((t) => t.pids).sort());
+    const before = await placed();
+    await tap(page, '[data-a=param][data-k=teams][data-s="1"]');
+    await expect(page.locator(".team")).toHaveCount(3);
+    await tap(page, "[data-a=teamUndo]");
+    await expect(page.locator(".team")).toHaveCount(2);
+    expect(await page.evaluate(() => S.params.teams)).toBe(2);
+    expect(await placed()).toEqual(before);
+  });
+});

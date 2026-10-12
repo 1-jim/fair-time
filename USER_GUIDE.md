@@ -94,11 +94,19 @@ The plan marked **Best** balances fairness against disruption. For example, with
 
 ### Splitting the squad
 
-- **Split A to Z** or **Shuffle** to make the teams.
-- Tap a name to move that player to the other team.
-- Rename teams by tapping the team name.
+Start with **Split A to Z** or **Shuffle** to get a rough split, then fine-tune by hand. This is where you balance the teams by ability and experience, or set up an A and a B team. There are no player ratings: you move people where you want them.
 
-Tap **Start match day** when you're ready.
+| To do this | Do this |
+| --- | --- |
+| Move a player to another team | Drag their name onto the other team. On a phone, press and hold the name for a moment, then drag. |
+| Swap two players | Drag one name onto a player in the other team. Both swap over in one go. |
+| Do it without dragging | Tap a name to select it (it gets a blue outline), then tap **Move here** on another team, or tap a player in another team to swap them. |
+| Change your mind | Tap **Undo**. It goes back one move at a time, and also undoes a re-split. |
+| Name the teams | Tap the team name and type, e.g. "A team" and "B team". |
+
+Each team shows how many players it has, how many have confirmed, and the bench size, so you can see the balance as you go. Names stay in alphabetical order within each team.
+
+When the teams look right, tap **Lock teams and start**. Teams are fixed from then on, apart from moving a player between teams before a kick-off or at full-time on the Match screen.
 
 ---
 
