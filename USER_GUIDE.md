@@ -65,6 +65,20 @@ Use the **Going**, **Late or unsure** and **Not going** buttons above the list t
 
 Add a missing player at the bottom.
 
+The **Event title** at the top is included when you send the squad on. Spond fills it in. Change it if you need to, for example "U12 home".
+
+### Give another coach the same squad
+
+Each phone keeps its own copy. To hand the squad and teams to another coach:
+
+1. On **Squad** or **Setup**, tap **Export squad file**.
+2. Send the file by WhatsApp, email or AirDrop. On Android you can share it straight to Fair Time.
+3. On the other phone, open Fair Time and tap **Import squad file**.
+
+They get the same names, who's going or late, the teams and the settings. Importing replaces the squad already on that phone. It does not copy minutes from a game that has already started. For a full match-day backup, use **Menu > Back up this session**.
+
+Set the teams up before you export if you want the split included.
+
 ---
 
 ## 2. Setting up teams
@@ -107,6 +121,8 @@ Start with **Split A to Z** or **Shuffle** to get a rough split, then fine-tune 
 Each team shows how many players it has, how many have confirmed, and the bench size, so you can see the balance as you go. Names stay in alphabetical order within each team.
 
 When the teams look right, tap **Lock teams and start**. Teams are fixed from then on, apart from moving a player between teams before a kick-off or at full-time on the Match screen.
+
+**Share team list** (on the Match screen, and in the menu) sends the event title, each team and the plan as a message for WhatsApp or anywhere else. That message is for people to read. It is not a file Fair Time can import. Use **Export squad file** when the other coach needs the squad in their own app.
 
 ---
 
@@ -195,7 +211,7 @@ Buttons at the top of the Summary:
 
 ## 6. Good to know
 
-- **One phone per team** works best if coaches are on different pitches. Each phone keeps its own data; there's no syncing between phones yet.
+- **One phone per team** works best if coaches are on different pitches. Export the squad file to the other phone before you lock in, then each phone runs its own game. Minutes are not shared live between phones.
 - **Everything stays on your phone.** Nothing is sent to a server, and no player data is stored online.
 - **No signal at the ground is fine**, as long as you've opened the app once beforehand.
 - **Reloading or locking the phone is safe.** The clock keeps correct time and nothing is lost.

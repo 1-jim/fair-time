@@ -255,3 +255,155 @@ test.describe("team builder", () => {
     expect(await placed()).toEqual(before);
   });
 });
+
+test("squad file round-trips teams, marks and settings onto a fresh phone", async ({ page }) => {
+  const fs = require("fs");
+  const os = require("os");
+  await importSquad(page);
+  const row = page.locator('.sq-row:has(button.going[aria-pressed="true"])').first();
+  const who = await row.locator(".nm").textContent();
+  await row.locator("button.maybe").evaluate((el) => el.click());
+
+  await page.locator("input.event").fill("U12 home");
+  await page.locator("input.event").evaluate((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+  await tap(page, "[data-a=toSetup]");
+  await page.locator('.team[data-ti="0"] input.inp').fill("Colts");
+  await page.locator('.team[data-ti="0"] input.inp').evaluate((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+  await tap(page, '[data-a=param][data-k=gameMins][data-s="1"]');
+
+  await page.evaluate(() => {
+    Object.defineProperty(Navigator.prototype, "canShare", { configurable: true, value: () => false });
+  });
+  const [download] = await Promise.all([page.waitForEvent("download"), tap(page, "[data-a=exportRoster]")]);
+  const raw = fs.readFileSync(await download.path(), "utf8");
+  const roster = JSON.parse(raw);
+  const file = path.join(os.tmpdir(), "fair-time-roster.json");
+  fs.writeFileSync(file, raw);
+  expect(roster.kind).toBe("fair-time-roster");
+  expect(roster.eventName).toBe("U12 home");
+  expect(roster.params.gameMins).toBe(17);
+  expect(roster.teams.map((t) => t.name)).toContain("Colts");
+  expect(roster.players.find((p) => p.name === who).resp).toBe("maybe");
+  const fileTeam = roster.teams.find((t) => t.players.includes(who)).name;
+  expect(roster.players.filter((p) => p.resp === "no").every((p) => !roster.teams.some((t) => t.players.includes(p.name)))).toBe(true);
+  expect(roster.players.filter((p) => p.resp === "no").length).toBeGreaterThan(0);
+  expect(raw).not.toContain("example.com");
+  expect(raw).not.toContain("callType");
+
+  page.once("dialog", (d) => d.dismiss());
+  await page.setInputFiles("#app input[data-ch=rosterFile]", file);
+  await expect(page.locator('.team[data-ti="0"] input.inp')).toHaveValue("Colts");
+
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  let dialogs = 0;
+  page.on("dialog", async (d) => {
+    dialogs++;
+    await d.dismiss();
+  });
+  await page.setInputFiles("#app input[data-ch=rosterFile]", file);
+  await expect(page.locator("#toast")).toContainText("Imported 33 players and 2 teams");
+  expect(dialogs).toBe(0);
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("wimborne-fairtime-v1")));
+  expect(state.eventName).toBe("U12 home");
+  expect(state.params.gameMins).toBe(17);
+  expect(state.started).toBe(false);
+  expect(state.view).toBe("setup");
+  const imported = Object.values(state.players).find((p) => p.name === who);
+  expect(imported.resp).toBe("maybe");
+  expect(state.teams.find((t) => t.pids.includes(imported.id)).name).toBe(fileTeam);
+  expect(state.teams.some((t) => t.name === "Colts")).toBe(true);
+  await expect(page.locator("input.event")).toHaveValue("U12 home");
+});
+
+test("share team list sends the event, the teams and the plan", async ({ page }) => {
+  await importSquad(page);
+  await page.locator("input.event").fill("U12 home");
+  await page.locator("input.event").evaluate((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+  await tap(page, "[data-a=toSetup]");
+  await page.locator('.team[data-ti="0"] input.inp').fill("Colts");
+  await page.locator('.team[data-ti="0"] input.inp').evaluate((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+  await tap(page, "[data-a=startDay]");
+  await page.evaluate(() => {
+    window.__shared = null;
+    Object.defineProperty(Navigator.prototype, "share", {
+      configurable: true,
+      writable: true,
+      value(data) {
+        window.__shared = data;
+        return Promise.resolve();
+      },
+    });
+  });
+  await tap(page, "[data-a=shareRoster]");
+  const shared = await page.evaluate(() => window.__shared);
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("wimborne-fairtime-v1")));
+  expect(shared.title).toBe("U12 home");
+  expect(shared.text).toContain("U12 home");
+  expect(shared.text).toContain("Colts (");
+  expect(shared.text).toContain(state.players[state.teams[0].pids[0]].name);
+  expect(shared.text).toContain("(late)");
+  expect(shared.text).toContain("Not playing");
+  expect(shared.text).toContain("on the pitch");
+  expect(shared.files).toBeFalsy();
+});
+
+test("a squad file is not a match backup, and a backup is not a squad file", async ({ page }) => {
+  const fs = require("fs");
+  const os = require("os");
+  await importSquad(page);
+  await page.evaluate(() => {
+    Object.defineProperty(Navigator.prototype, "canShare", { configurable: true, value: () => false });
+  });
+  const [squadDl] = await Promise.all([page.waitForEvent("download"), tap(page, "[data-a=exportRoster]")]);
+  const squadPath = path.join(os.tmpdir(), "ft-squad.json");
+  fs.writeFileSync(squadPath, fs.readFileSync(await squadDl.path()));
+
+  await tap(page, "[data-a=modal][data-m=menu]");
+  const [backupDl] = await Promise.all([page.waitForEvent("download"), tap(page, "[data-a=exportJSON]")]);
+  const backupPath = path.join(os.tmpdir(), "ft-backup.json");
+  fs.writeFileSync(backupPath, fs.readFileSync(await backupDl.path()));
+  await tap(page, "[data-a=closeModal]");
+
+  await page.setInputFiles("#app input[data-ch=rosterFile]", backupPath);
+  await expect(page.locator("#toast")).toContainText("full backup");
+  await expect(page.locator(".fchip.going b")).toHaveText("26");
+
+  await tap(page, "[data-a=modal][data-m=menu]");
+  await page.setInputFiles(".sheet input[data-ch=restoreFile]", squadPath);
+  await expect(page.locator("#toast")).toContainText("squad file");
+  await expect(page.locator(".fchip.going b")).toHaveText("26");
+});
+
+test("android share target imports a squad file", async ({ page }) => {
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  const roster = {
+    kind: "fair-time-roster",
+    v: 1,
+    eventName: "U12 away",
+    eventDate: "Sun 18 Oct",
+    params: { teams: 2, onField: 9, gameMins: 16, games: 3, halves: 2, k: 2, interval: 4, breakReshuffle: true, outlier: 1 },
+    stratPicked: true,
+    players: [
+      { name: "Alex Quinn", resp: "going" },
+      { name: "Blair Quinn", resp: "maybe" },
+      { name: "Casey Quinn", resp: "no" },
+    ],
+    teams: [{ name: "Blues", players: ["Alex Quinn", "Blair Quinn"] }],
+  };
+  await page.evaluate(async (body) => {
+    const fd = new FormData();
+    fd.append("file", new File([body], "fair-time-squad.json", { type: "application/json" }));
+    await fetch("share", { method: "POST", body: fd });
+  }, JSON.stringify(roster));
+  await page.goto("/?shared=1");
+  await expect(page.locator("#toast")).toContainText("Imported 3 players and 1 team");
+  await expect(page.locator("input.event")).toHaveValue("U12 away");
+  await expect(page.locator(".tchip")).toHaveCount(2);
+  await expect(page.locator(".tchip.maybe")).toHaveText("Blair Quinn");
+  await expect(page.getByText("Sun 18 Oct")).toBeVisible();
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("wimborne-fairtime-v1")));
+  expect(Object.values(state.players).find((p) => p.name === "Casey Quinn").resp).toBe("no");
+  expect(state.teams[0].name).toBe("Blues");
+});
