@@ -1928,7 +1928,6 @@
           throw new Error("That file isn't a Fair Time squad file.");
         }
         if (o.v !== 1) throw new Error("That squad file is from a newer Fair Time. Update the app, then try again.");
-        if (S.started) throw new Error("Match day is under way. Start a new session before importing a squad.");
         if (!Array.isArray(o.players) || !o.players.length) throw new Error("No players in that file.");
         if (o.players.length > 200) throw new Error("That file has too many players.");
         const next = fresh();
@@ -2015,7 +2014,12 @@
       }
       function receiveRoster(o) {
         const built = applyRoster(o);
-        if (S.order.length && !confirm("This replaces the squad and teams on this phone. Continue?")) return;
+        const warn = S.started
+          ? "This replaces everything on this phone, including any game already under way. This can't be undone. Continue?"
+          : S.order.length
+            ? "This replaces the squad and teams on this phone. Continue?"
+            : "";
+        if (warn && !confirm(warn)) return;
         S = built.next;
         UI.modal = null;
         UI.sheet = null;
@@ -2026,7 +2030,9 @@
         UI.squadKeep = [];
         const n = S.order.length;
         const teams = S.teams.length;
-        let msg = teams ? `Imported ${n} players and ${teams} teams` : `Imported ${n} players`;
+        const playersWord = n === 1 ? "player" : "players";
+        const teamsWord = teams === 1 ? "team" : "teams";
+        let msg = teams ? `Imported ${n} ${playersWord} and ${teams} ${teamsWord}` : `Imported ${n} ${playersWord}`;
         if (built.skipped) msg += `. ${built.skipped} ${built.skipped === 1 ? "name" : "names"} didn't match`;
         toast(msg);
       }
@@ -2139,11 +2145,11 @@
         const share = `<button class="btn" data-a="shareRoster">Share team list</button>`;
         if (mode === "share") return `<div class="row handoff">${share}</div>`;
         if (mode === "locked") {
-          return `<div class="row handoff">${share}${exp}</div><p class="small muted">Share team list sends a message. Export squad file is for another Fair Time phone.</p>`;
+          return `<div class="row handoff">${share}${exp}${imp}</div><p class="small muted">Share team list sends a message. Import squad file replaces whatever is on this phone, after a warning.</p>`;
         }
         const hint = S.teams.length
-          ? "The file has the squad, the teams and the settings. Another coach imports it in Fair Time."
-          : "The file has the squad and the settings. Set the teams up first if you want the split included.";
+          ? "The file has the squad, the teams and the settings. On Android, share it from WhatsApp to Fair Time. On an iPhone, use Import squad file."
+          : "The file has the squad and the settings. Set the teams up first if you want the split included. On Android, share the file from WhatsApp to Fair Time.";
         return `<div class="row handoff">${exp}${imp}</div><p class="small muted" style="margin:8px 0 0">${hint}</p>`;
       }
       function viewSquad() {
@@ -2490,7 +2496,7 @@
             <a class="btn primary" href="guide.html">How to use Fair Time</a>
             ${S.started ? '<button class="btn" data-a="shareRoster">Share team list</button><button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export minutes (CSV)</button>' : ""}
             ${S.order.length ? '<button class="btn" data-a="exportRoster">Export squad file</button>' : ""}
-            ${S.started ? "" : '<label class="btn file">Import squad file<input type="file" accept=".json,application/json" data-ch="rosterFile"></label>'}
+            <label class="btn file">Import squad file<input type="file" accept=".json,application/json" data-ch="rosterFile"></label>
             <button class="btn" data-a="exportJSON">Back up this session (JSON)</button>
             <label class="btn file">Restore a backup<input type="file" accept=".json,application/json" data-ch="restoreFile"></label>
             <button class="btn" data-a="sound">Sound alerts: ${S.sound ? "on" : "off"}</button>
@@ -3209,13 +3215,16 @@
           toast("Previous session cleared");
         },
       };
+      function looksLikeSquadFile(name, type, head) {
+        return name.endsWith(".json") || /json/.test(type) || head.startsWith("{") || head.startsWith("[");
+      }
       async function importFileObj(f) {
           try {
             const name = (f.name || "").toLowerCase();
             const spreadsheet = name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv");
             if (!spreadsheet) {
-              const head = (await f.slice(0, 1).text()).replace(/^\uFEFF/, "").trim();
-              if (name.endsWith(".json") || f.type === "application/json" || head === "{") {
+              const head = (await f.slice(0, 16).text()).replace(/^\uFEFF/, "").trim();
+              if (looksLikeSquadFile(name, f.type || "", head)) {
                 let o;
                 try {
                   o = JSON.parse(await f.text());
@@ -3228,6 +3237,7 @@
                 return;
               }
             }
+            if (S.started) throw new Error("Match day is under way. Start a new session before importing a new squad.");
             let sheets;
             try {
               sheets = await readSheets(f);
@@ -3334,17 +3344,24 @@
           const r = await c.match(key);
           if (!r) return;
           const name = decodeURIComponent(r.headers.get("x-name") || "shared.xlsx");
-          const file = new File([await r.blob()], name);
+          const type = r.headers.get("content-type") || "";
+          const file = new File([await r.blob()], name, { type });
           await c.delete(key);
-          if (S.started) {
-            toast("Match day is under way. Start a new session before importing a new squad.");
-            return;
-          }
-          S.view = "squad";
           await importFileObj(file);
         } catch (e) {
-          toast("Couldn't open the shared file. Use Import Spond file instead.");
+          toast("Couldn't open the shared file. Use Import on the Squad screen instead.");
         }
+      }
+      if (window.launchQueue) {
+        launchQueue.setConsumer(async (params) => {
+          const handle = params.files && params.files[0];
+          if (!handle) return;
+          try {
+            await importFileObj(await handle.getFile());
+          } catch (e) {
+            toast("Couldn't open that file. Use Import squad file instead.");
+          }
+        });
       }
       render();
       checkShared();

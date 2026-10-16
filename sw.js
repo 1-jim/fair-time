@@ -1,5 +1,5 @@
 // Bump VERSION on every release so phones pick up the new app shell.
-const VERSION = "fairtime-v1.5.0";
+const VERSION = "fairtime-v1.5.1";
 const SHARE = "fairtime-share";
 const SHELL = [
   "./",
@@ -31,7 +31,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   const scope = self.registration.scope;
 
-  // Android share sheet: Spond > Share > Fair Time
+  // Android share sheet: Spond or a squad file > Share > Fair Time
   if (req.method === "POST" && url.href.startsWith(scope) && url.pathname.endsWith("/share")) {
     event.respondWith(
       (async () => {
@@ -42,7 +42,12 @@ self.addEventListener("fetch", (event) => {
             const c = await caches.open(SHARE);
             await c.put(
               new URL("shared-file", scope).href,
-              new Response(file, { headers: { "x-name": encodeURIComponent(file.name || "shared.xlsx") } }),
+              new Response(file, {
+                headers: {
+                  "content-type": file.type || "application/octet-stream",
+                  "x-name": encodeURIComponent(file.name || "shared.xlsx"),
+                },
+              }),
             );
           }
         } catch (e) {}

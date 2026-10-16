@@ -72,10 +72,12 @@ The **Event title** at the top is included when you send the squad on. Spond fil
 Each phone keeps its own copy. To hand the squad and teams to another coach:
 
 1. On **Squad** or **Setup**, tap **Export squad file**.
-2. Send the file by WhatsApp, email or AirDrop. On Android you can share it straight to Fair Time.
-3. On the other phone, open Fair Time and tap **Import squad file**.
+2. Send the file by WhatsApp, email or AirDrop.
+3. On the other phone:
+   - **Android, Fair Time saved on the home screen:** open the file in WhatsApp, tap Share, then **Fair Time**. The app warns you first, then replaces whatever is already on that phone, including a game that has started.
+   - **iPhone:** save the file to Files, open Fair Time and tap **Import squad file** (it stays in the menu during a match). The app warns you first, then replaces whatever is already on that phone, including a game that has started. An iPhone does not list a home-screen app in the WhatsApp share sheet.
 
-They get the same names, who's going or late, the teams and the settings. Importing replaces the squad already on that phone. It does not copy minutes from a game that has already started. For a full match-day backup, use **Menu > Back up this session**.
+They get the same names, who's going or late, the teams and the settings. Importing does not copy minutes from a game that has already started. For a full match-day backup, use **Menu > Back up this session**.
 
 Set the teams up before you export if you want the split included.
 

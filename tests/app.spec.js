@@ -407,3 +407,126 @@ test("android share target imports a squad file", async ({ page }) => {
   expect(Object.values(state.players).find((p) => p.name === "Casey Quinn").resp).toBe("no");
   expect(state.teams[0].name).toBe("Blues");
 });
+
+test("a WhatsApp-style squad file replaces a game under way after a warning", async ({ page }) => {
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  await tap(page, "[data-a=startDay]");
+  await expect(page.locator("[data-a=kickoff]")).toBeVisible();
+
+  const roster = JSON.stringify({
+    kind: "fair-time-roster",
+    v: 1,
+    eventName: "U12 away",
+    eventDate: "",
+    params: { teams: 1, onField: 9, gameMins: 16, games: 3, halves: 2, k: 2, interval: 4, breakReshuffle: true, outlier: 1 },
+    stratPicked: true,
+    players: [
+      { name: "Alex Quinn", resp: "going" },
+      { name: "Blair Quinn", resp: "maybe" },
+      { name: "Casey Quinn", resp: "no" },
+    ],
+    teams: [{ name: "Blues", players: ["Alex Quinn", "Blair Quinn"] }],
+  });
+  const share = (body) =>
+    page.evaluate(async (body) => {
+      const fd = new FormData();
+      // WhatsApp shares documents without a .json name, as a generic file
+      fd.append("file", new File([body], "WhatsApp File", { type: "application/octet-stream" }));
+      await fetch("share", { method: "POST", body: fd });
+    }, body);
+
+  await share(roster);
+  const declined = new Promise((resolve) => {
+    page.once("dialog", async (d) => {
+      resolve(d.message());
+      await d.dismiss();
+    });
+  });
+  await page.goto("/?shared=1");
+  expect(await declined).toContain("game already under way");
+  await expect(page.locator("[data-a=kickoff]")).toBeVisible();
+
+  await share(roster);
+  const accepted = new Promise((resolve) => {
+    page.once("dialog", async (d) => {
+      resolve(d.message());
+      await d.accept();
+    });
+  });
+  await page.goto("/?shared=1");
+  await accepted;
+  await expect(page.locator("#toast")).toContainText("Imported 3 players and 1 team");
+  await expect(page.locator("input.event")).toHaveValue("U12 away");
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("wimborne-fairtime-v1")));
+  expect(state.started).toBe(false);
+  expect(Object.keys(state.players)).toHaveLength(3);
+  expect(state.teams[0].name).toBe("Blues");
+});
+
+test("a shared spreadsheet does not replace a game under way", async ({ page }) => {
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  await tap(page, "[data-a=startDay]");
+  await expect(page.locator("[data-a=kickoff]")).toBeVisible();
+
+  const bytes = [...require("fs").readFileSync(FIXTURE)];
+  await page.evaluate(async (arr) => {
+    const fd = new FormData();
+    fd.append("file", new File([new Uint8Array(arr)], "spond.xlsx"));
+    await fetch("share", { method: "POST", body: fd });
+  }, bytes);
+  await page.goto("/?shared=1");
+  await expect(page.locator("#toast")).toContainText("Match day is under way");
+  await expect(page.locator("[data-a=kickoff]")).toBeVisible();
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("wimborne-fairtime-v1")));
+  expect(state.started).toBe(true);
+  expect(Object.keys(state.players).length).toBeGreaterThan(10);
+});
+
+test("import squad file from the menu replaces a game under way after a warning", async ({ page }) => {
+  const fs = require("fs");
+  const os = require("os");
+  const file = path.join(os.tmpdir(), "fair-time-roster-live.json");
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      kind: "fair-time-roster",
+      v: 1,
+      eventName: "U12 away",
+      eventDate: "",
+      params: { teams: 1, onField: 9, gameMins: 16, games: 3, halves: 2, k: 2, interval: 4, breakReshuffle: true, outlier: 1 },
+      stratPicked: true,
+      players: [{ name: "Casey Quinn", resp: "going" }],
+      teams: [{ name: "Blues", players: ["Casey Quinn"] }],
+    }),
+  );
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  await tap(page, "[data-a=startDay]");
+  await tap(page, "[data-a=modal][data-m=menu]");
+  await expect(page.locator(".sheet input[data-ch=rosterFile]")).toBeAttached();
+
+  page.once("dialog", (d) => d.dismiss());
+  await page.setInputFiles(".sheet input[data-ch=rosterFile]", file);
+  await expect(page.locator("[data-a=kickoff]")).toBeVisible();
+
+  await tap(page, "[data-a=modal][data-m=menu]");
+  const warned = new Promise((resolve) => {
+    page.once("dialog", async (d) => {
+      resolve(d.message());
+      await d.accept();
+    });
+  });
+  await page.setInputFiles(".sheet input[data-ch=rosterFile]", file);
+  expect(await warned).toContain("can't be undone");
+  await expect(page.locator("#toast")).toContainText("Imported 1 player and 1 team");
+  await expect(page.locator("input.event")).toHaveValue("U12 away");
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("wimborne-fairtime-v1")));
+  expect(state.started).toBe(false);
+  expect(Object.values(state.players).map((p) => p.name)).toEqual(["Casey Quinn"]);
+});
