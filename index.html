@@ -1661,7 +1661,7 @@
         }
         return out;
       }
-      function applyImport(res) {
+      function applyImport(res, replace) {
         const byName = {};
         S.order.forEach((id) => (byName[S.players[id].name.toLowerCase()] = id));
         const seen = new Set();
@@ -1679,8 +1679,18 @@
         });
         if (res.event) S.eventName = res.event;
         if (res.date) S.eventDate = res.date;
-        S.teams = [];
-        UI.teamUndo = [];
+        if (replace) {
+          S.order = S.order.filter((id) => {
+            const keep = seen.has(S.players[id].name.toLowerCase());
+            if (!keep) delete S.players[id];
+            return keep;
+          });
+          S.teams = [];
+          S.stratPicked = false;
+          UI.teamUndo = [];
+          UI.teamSel = null;
+          UI.simCache = {};
+        }
       }
 
       /* ---------- Teams ---------- */
@@ -1705,6 +1715,51 @@
           const r = Math.floor(i / n);
           const c = i % n;
           S.teams[r % 2 ? n - 1 - c : c].pids.push(id);
+        });
+      }
+      function dropFromTeams(id) {
+        S.teams.forEach((tm) => {
+          tm.pids = tm.pids.filter((x) => x !== id);
+        });
+      }
+      // Out players leave their team. Everyone else already placed stays there.
+      // Anyone still unassigned joins the smallest team, which is also what import does.
+      function alignTeams() {
+        if (S.started || !S.teams.length) return;
+        S.order.forEach((id) => {
+          if (S.players[id] && S.players[id].resp === "no") dropFromTeams(id);
+        });
+        S.order.forEach((id) => {
+          const p = S.players[id];
+          if (!p || p.resp === "no") return;
+          if (S.teams.some((tm) => tm.pids.includes(id))) return;
+          let best = 0;
+          S.teams.forEach((tm, i) => {
+            if (tm.pids.length < S.teams[best].pids.length) best = i;
+          });
+          S.teams[best].pids.push(id);
+        });
+      }
+      function applyBestPlan() {
+        if (S.started || S.stratPicked || !S.teams.length) return;
+        const sizes = S.teams.map((tm) => tm.pids.filter((p) => S.players[p] && S.players[p].resp === "going").length);
+        const best = strategies(Math.max(...sizes))[0];
+        if (!best) return;
+        S.params.k = best.k;
+        S.params.interval = best.iv;
+      }
+      function prepareSetup() {
+        if (S.started) return;
+        if (!S.teams.length && S.order.some((id) => S.players[id] && S.players[id].resp !== "no")) splitTeams("az");
+        alignTeams();
+        applyBestPlan();
+      }
+      function flushEditors() {
+        const ev = document.querySelector("input.event");
+        if (ev) S.eventName = ev.value.replace(/\s+/g, " ").trim().slice(0, 120);
+        document.querySelectorAll("input[data-ch=teamName]").forEach((el) => {
+          const tm = S.teams[+el.dataset.i];
+          if (tm) tm.name = el.value.trim() || "Team";
         });
       }
       function startDay() {
@@ -1904,7 +1959,11 @@
           ids
             .slice()
             .sort((a, b) => nm(a).localeCompare(nm(b)))
-            .forEach((id) => lines.push("- " + nm(id)));
+            .forEach((id) => {
+              const resp = S.players[id].resp;
+              const mark = resp === "maybe" ? " (late)" : resp === "no" ? " (out)" : "";
+              lines.push("- " + nm(id) + mark);
+            });
           lines.push("");
         };
         block(
@@ -1920,6 +1979,53 @@
         lines.push(P.onField + " on the pitch, " + P.gameMins + " minute games, " + halves + ", " + games + ".");
         lines.push(stratLabel(P.k, P.interval) + ".");
         return lines.join("\n").replace(/\n+$/, "");
+      }
+      function parsePastedNames(text) {
+        const raw = String(text || "").replace(/\r/g, "");
+        const lines = raw
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const bullet = /^(?:[-*•]\s+)/;
+        const teamHead = /^.+ \(\d+\)\s*$/;
+        const shared = lines.some((s) => bullet.test(s) || teamHead.test(s) || /^(not playing|not in a team)$/i.test(s));
+        const rows = [];
+        const push = (name, resp) => {
+          name = cleanName(name);
+          if (!name || name.length > 80) return;
+          rows.push({ name, resp });
+        };
+        if (shared) {
+          let out = false;
+          lines.forEach((s) => {
+            if (/^not playing$/i.test(s)) {
+              out = true;
+              return;
+            }
+            if (/^not in a team$/i.test(s) || teamHead.test(s)) {
+              out = false;
+              return;
+            }
+            if (!bullet.test(s)) return;
+            let name = s.replace(bullet, "").trim();
+            let resp = out ? "no" : "going";
+            if (/\(late\)\s*$/i.test(name)) {
+              resp = "maybe";
+              name = name.replace(/\(late\)\s*$/i, "").trim();
+            } else if (/\(out\)\s*$/i.test(name)) {
+              resp = "no";
+              name = name.replace(/\(out\)\s*$/i, "").trim();
+            }
+            push(name, resp);
+          });
+          return rows;
+        }
+        raw
+          .split(/\n|,/)
+          .map((s) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
+          .filter(Boolean)
+          .forEach((name) => push(name, "going"));
+        return rows;
       }
       function applyRoster(o) {
         if (!o || typeof o !== "object" || Array.isArray(o)) throw new Error("That file isn't a Fair Time squad file.");
@@ -2148,8 +2254,8 @@
           return `<div class="row handoff">${share}${exp}${imp}</div><p class="small muted">Share team list sends a message. Import squad file replaces whatever is on this phone, after a warning.</p>`;
         }
         const hint = S.teams.length
-          ? "The file has the squad, the teams and the settings. On Android, share it from WhatsApp to Fair Time. On an iPhone, use Import squad file."
-          : "The file has the squad and the settings. Set the teams up first if you want the split included. On Android, share the file from WhatsApp to Fair Time.";
+          ? "Squad and Setup export the same file: names, teams and settings. On Android, share it from WhatsApp to Fair Time. On an iPhone, use Import squad file."
+          : "Squad and Setup export the same file. Open Setup once if you want the teams included. On Android, share it from WhatsApp to Fair Time.";
         return `<div class="row handoff">${exp}${imp}</div><p class="small muted" style="margin:8px 0 0">${hint}</p>`;
       }
       function viewSquad() {
@@ -2230,7 +2336,6 @@
       function viewSetup() {
         const P = S.params;
         const lock = S.started;
-        if (!S.teams.length && S.order.length) splitTeams("az");
         let h = `<h2>Setup</h2>${eventTitle(false)}`;
         if (lock) h += `<div class="note">Match day is under way. These settings are locked; change the substitution plan per team from the Match screen.</div>`;
         h += `<div class="panel">
@@ -2243,13 +2348,6 @@
           ${stepper("Flag anyone this far from fair share (min)", "outlier", "", false)}
         </div>`;
         const sizes = [...new Set(S.teams.map((tm) => tm.pids.filter((p) => S.players[p].resp === "going").length))];
-        if (!lock && !S.stratPicked && sizes.length) {
-          const best = strategies(Math.max(...sizes))[0];
-          if (best) {
-            P.k = best.k;
-            P.interval = best.iv;
-          }
-        }
         h += `<h3>Substitution plan</h3>`;
         if (!lock) {
           h += `<p class="muted">Pick a plan. Each one was run through a full match day to see how evenly it shares time.</p>`;
@@ -2490,7 +2588,7 @@
         const m = UI.modal;
         let inner = "";
         if (m === "paste") {
-          inner = `<h2>Paste names</h2><p class="muted">One name per line, or separated by commas. Everyone pasted is marked as going.</p><textarea id="pasteBox"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="pasteApply">Add names</button></div>`;
+          inner = `<h2>Paste names</h2><p class="muted">One name per line, or separated by commas. A shared team list from WhatsApp works too: late and out marks in that list are kept.${S.order.length ? " This replaces the squad list already on this phone. The event title and date stay." : " A plain list is marked as going."}</p><textarea id="pasteBox"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="pasteApply">${S.order.length ? "Replace squad" : "Add names"}</button></div>`;
         } else if (m === "menu") {
           inner = `<h2>Menu</h2><div class="opts">
             <a class="btn primary" href="guide.html">How to use Fair Time</a>
@@ -2798,6 +2896,7 @@
       const limits = { teams: [1, 6], onField: [3, 15], gameMins: [4, 40], games: [1, 8], halves: [1, 2], outlier: [0.5, 5] };
       const A = {
         go: (d) => {
+          if (d.v === "setup") prepareSetup();
           S.view = d.v;
           UI.sheet = null;
           UI.modal = null;
@@ -2815,33 +2914,54 @@
         },
         resp: (d) => {
           if (!UI.squadKeep.includes(d.p)) UI.squadKeep.push(d.p);
+          if (S.players[d.p].resp === d.r) return;
           S.players[d.p].resp = d.r;
-          S.teams = [];
-          UI.teamUndo = [];
+          alignTeams();
+          if (!S.started) {
+            S.stratPicked = false;
+            UI.simCache = {};
+            applyBestPlan();
+          }
         },
         addSquad: () => {
           const name = $("#addName").value.trim();
           if (!name) return;
           applyImport({ rows: [{ name, resp: "going" }] });
+          alignTeams();
+          if (!S.started) {
+            S.stratPicked = false;
+            UI.simCache = {};
+            applyBestPlan();
+          }
         },
         removeSquad: (d) => {
           delete S.players[d.p];
           S.order = S.order.filter((x) => x !== d.p);
-          S.teams = [];
-          UI.teamUndo = [];
+          dropFromTeams(d.p);
+          if (!S.started) {
+            S.stratPicked = false;
+            UI.simCache = {};
+            applyBestPlan();
+          }
         },
         pasteApply: () => {
-          const rows = $("#pasteBox")
-            .value.split(/\n|,/)
-            .map((s) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
-            .filter(Boolean)
-            .map((name) => ({ name, resp: "going" }));
-          applyImport({ rows });
+          const rows = parsePastedNames($("#pasteBox").value);
+          if (!rows.length) {
+            toast("No names found in that paste.");
+            return;
+          }
+          const replacing = S.order.length > 0;
+          if (
+            replacing &&
+            !confirm("This replaces the squad list and clears the teams. Names from Spond or an earlier paste will be removed. The event title and date stay. Continue?")
+          )
+            return;
+          applyImport({ rows }, true);
           UI.modal = null;
-          toast(`Added ${rows.length} names`);
+          toast(replacing ? `Squad list replaced with ${rows.length} names` : `Added ${rows.length} names`);
         },
         toSetup: () => {
-          if (!S.teams.length) splitTeams("az");
+          prepareSetup();
           S.view = "setup";
         },
         param: (d) => {
@@ -2856,13 +2976,17 @@
           }
           const hm = P.gameMins / P.halves;
           if (P.interval >= hm) P.interval = 0;
-          S.stratPicked = false;
-          UI.simCache = {};
+          if (!S.started) {
+            S.stratPicked = false;
+            UI.simCache = {};
+            applyBestPlan();
+          }
         },
         toggleBreak: () => {
           S.params.breakReshuffle = !S.params.breakReshuffle;
           S.stratPicked = false;
           UI.simCache = {};
+          applyBestPlan();
         },
         pickStrat: (d) => {
           S.params.k = +d.k;
@@ -3145,8 +3269,8 @@
         exportCSV: () => saveFile(`fair-time-minutes-${stamp()}.csv`, csvText()),
         exportRoster: async () => {
           if (!S.order.length) return;
-          const ev = document.querySelector("input.event");
-          if (ev) S.eventName = ev.value.replace(/\s+/g, " ").trim().slice(0, 120);
+          flushEditors();
+          alignTeams();
           const data = JSON.stringify(rosterData(), null, 2);
           const filename = `fair-time-squad-${stamp()}.json`;
           const file = new File([data], filename, { type: "application/json" });
@@ -3162,6 +3286,8 @@
         },
         shareRoster: async () => {
           if (!S.started || !S.teams.length) return;
+          flushEditors();
+          alignTeams();
           const text = rosterText();
           const title = S.eventName || "Team list";
           try {
@@ -3246,7 +3372,7 @@
             }
             const res = parseWorkbook(sheets);
             if (!res.rows.length) throw new Error("No names found in that file. Export the event participant list from Spond, or use Paste names.");
-            applyImport(res);
+            applyImport(res, true);
             const g = res.rows.filter((r) => r.resp === "going").length;
             toast(`Imported ${res.rows.length} names, ${g} going`);
           } catch (e) {
@@ -3314,6 +3440,7 @@
         if (!el || el.disabled) return;
         const fn = A[el.dataset.a];
         if (!fn) return;
+        flushEditors();
         const r = fn(el.dataset, el, e);
         if (r && r.then) r.then(() => (save(), render()));
         save();
@@ -3362,6 +3489,10 @@
             toast("Couldn't open that file. Use Import squad file instead.");
           }
         });
+      }
+      if (!S.started && S.view === "setup") {
+        prepareSetup();
+        save();
       }
       render();
       checkShared();

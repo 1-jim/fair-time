@@ -45,9 +45,9 @@ Open it once with signal so it's saved on your phone. After that it works with n
    - **Android:** choose **Fair Time** from the share menu. The squad loads straight in.
    - **iPhone:** save the file to Files. Open Fair Time and tap **Import Spond file**.
 
-Fair Time reads only names and responses. Contact details, addresses and dates of birth in the Spond file are ignored and never stored.
+Fair Time reads only names and responses. Contact details, addresses and dates of birth in the Spond file are ignored and never stored. Importing a Spond file replaces the squad already on this phone: names from an earlier event are removed, and the teams are cleared so you can set them up for this event.
 
-No Spond file? Tap **Paste names** and paste a list, one name per line.
+No Spond file? Tap **Paste names** and paste a list, one name per line. You can also paste a **Share team list** message from WhatsApp. If this phone already has a squad, Fair Time asks you to confirm, then replaces that list. The event title and date stay. The teams are cleared so you can set them up again.
 
 ### Check the squad
 
@@ -57,9 +57,9 @@ Everyone appears on the **Squad** screen, marked as one of:
 | --- | --- |
 | **Going** | Said yes in Spond |
 | **Late** | Didn't answer, or might be late. They start as "not arrived" and join in when you tap them. |
-| **Out** | Can't make it. Left out of the teams. |
+| **Out** | Can't make it. Taken off their team. Everyone else stays where you put them. |
 
-Tap to change anyone's mark. The list stays in alphabetical order, so names never jump around when you change them.
+Tap to change anyone's mark. That does not reshuffle the teams. The list stays in alphabetical order, so names never jump around when you change them.
 
 Use the **Going**, **Late or unsure** and **Not going** buttons above the list to filter it. Tap one to show only those players, or tap more than one to combine them (for example Going and Late together). The numbers on the buttons update as you change marks. Tap **Show all** to clear the filter.
 
@@ -77,9 +77,9 @@ Each phone keeps its own copy. To hand the squad and teams to another coach:
    - **Android, Fair Time saved on the home screen:** open the file in WhatsApp, tap Share, then **Fair Time**. The app warns you first, then replaces whatever is already on that phone, including a game that has started.
    - **iPhone:** save the file to Files, open Fair Time and tap **Import squad file** (it stays in the menu during a match). The app warns you first, then replaces whatever is already on that phone, including a game that has started. An iPhone does not list a home-screen app in the WhatsApp share sheet.
 
-They get the same names, who's going or late, the teams and the settings. Importing does not copy minutes from a game that has already started. For a full match-day backup, use **Menu > Back up this session**.
+Export from **Squad** or **Setup**: both send the same file. They get the same names, who's going or late, the teams and the settings. Importing puts those teams back as they were, and opening Setup does not reshuffle them. It does not copy minutes from a game that has already started. For a full match-day backup, use **Menu > Back up this session**.
 
-Set the teams up before you export if you want the split included.
+Set the teams up before you export if you want your own split included. Until then the file has the squad and the settings, and the teams are filled in when you open Setup.
 
 ---
 
@@ -124,7 +124,7 @@ Each team shows how many players it has, how many have confirmed, and the bench 
 
 When the teams look right, tap **Lock teams and start**. Teams are fixed from then on, apart from moving a player between teams before a kick-off or at full-time on the Match screen.
 
-**Share team list** (on the Match screen, and in the menu) sends the event title, each team and the plan as a message for WhatsApp or anywhere else. That message is for people to read. It is not a file Fair Time can import. Use **Export squad file** when the other coach needs the squad in their own app.
+**Share team list** (on the Match screen, and in the menu) sends the event title, each team and the plan as a message for WhatsApp or anywhere else. Another coach can paste that message into **Paste names**. That replaces their squad list and keeps their event title and date. It does not bring across the teams or the settings. Use **Export squad file** when the other coach needs those too.
 
 ---
 

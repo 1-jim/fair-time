@@ -348,6 +348,89 @@ test("share team list sends the event, the teams and the plan", async ({ page })
   expect(shared.files).toBeFalsy();
 });
 
+test("pasting a shared team list replaces the squad and keeps the event", async ({ page }) => {
+  let dialogs = 0;
+  const onDialog = (d) => {
+    dialogs++;
+    return d.dismiss();
+  };
+  page.on("dialog", onDialog);
+  await tap(page, "[data-a=modal][data-m=paste]");
+  await page.locator("#pasteBox").fill("Alex Quinn\nBlair Quinn");
+  await tap(page, "[data-a=pasteApply]");
+  expect(dialogs).toBe(0);
+  await expect(page.locator("#toast")).toContainText("Added 2 names");
+  page.off("dialog", onDialog);
+
+  await importSquad(page);
+  await page.locator("input.event").fill("U12 home");
+  await page.locator("input.event").evaluate((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+  await tap(page, "[data-a=toSetup]");
+  const snap = await page.evaluate(() => ({
+    eventName: S.eventName,
+    eventDate: S.eventDate,
+    text: rosterText(),
+    late: Object.values(S.players)
+      .filter((p) => p.resp === "maybe")
+      .map((p) => p.name),
+    out: Object.values(S.players)
+      .filter((p) => p.resp === "no")
+      .map((p) => p.name),
+  }));
+  expect(snap.late.length).toBeGreaterThan(0);
+  expect(snap.out.length).toBeGreaterThan(0);
+  await page.evaluate(() => {
+    const id = "zz";
+    S.players[id] = { id, name: "Zed Extra", resp: "going" };
+    S.order.push(id);
+    alignTeams();
+    save();
+    render();
+  });
+
+  await tap(page, "[data-a=go][data-v=squad]");
+  await tap(page, "[data-a=modal][data-m=paste]");
+  await page.locator("#pasteBox").fill(snap.text);
+  page.once("dialog", (d) => d.dismiss());
+  await tap(page, "[data-a=pasteApply]");
+  expect(await page.evaluate(() => Object.values(S.players).some((p) => p.name === "Zed Extra"))).toBe(true);
+  expect(await page.evaluate(() => S.teams.length)).toBeGreaterThan(0);
+
+  await page.locator("#pasteBox").fill(snap.text);
+  let warning = "";
+  page.once("dialog", async (d) => {
+    warning = d.message();
+    await d.accept();
+  });
+  await tap(page, "[data-a=pasteApply]");
+  expect(warning).toContain("replaces the squad list");
+  expect(warning).toContain("event title and date stay");
+  await expect(page.locator("#toast")).toContainText("Squad list replaced");
+  const after = await page.evaluate(() => ({
+    names: S.order.map((id) => S.players[id].name),
+    eventName: S.eventName,
+    eventDate: S.eventDate,
+    teams: S.teams.length,
+    late: Object.values(S.players)
+      .filter((p) => p.resp === "maybe")
+      .map((p) => p.name)
+      .sort(),
+    out: Object.values(S.players)
+      .filter((p) => p.resp === "no")
+      .map((p) => p.name)
+      .sort(),
+  }));
+  expect(after.names).not.toContain("Zed Extra");
+  expect(after.names).not.toContain("U12 home");
+  expect(after.names.some((n) => /pitch|Swap/.test(n))).toBe(false);
+  expect(after.eventName).toBe("U12 home");
+  expect(after.eventDate).toBe(snap.eventDate);
+  expect(after.teams).toBe(0);
+  expect(after.late).toEqual(snap.late.slice().sort());
+  expect(after.out).toEqual(snap.out.slice().sort());
+  await expect(page.locator("input.event")).toHaveValue("U12 home");
+});
+
 test("a squad file is not a match backup, and a backup is not a squad file", async ({ page }) => {
   const fs = require("fs");
   const os = require("os");
@@ -406,6 +489,61 @@ test("android share target imports a squad file", async ({ page }) => {
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem("wimborne-fairtime-v1")));
   expect(Object.values(state.players).find((p) => p.name === "Casey Quinn").resp).toBe("no");
   expect(state.teams[0].name).toBe("Blues");
+});
+
+test("squad and setup exports keep the same teams, and import does not reshuffle them", async ({ page }) => {
+  await importSquad(page);
+  await page.evaluate(() => {
+    const id = "extra1";
+    S.players[id] = { id, name: "Zed Extra", resp: "going" };
+    S.order.push(id);
+  });
+  await page.setInputFiles("input[data-ch=importFile]", FIXTURE);
+  await expect.poll(() => page.evaluate(() => S.order.length)).toBe(33);
+  await expect.poll(() => page.evaluate(() => S.order.map((id) => S.players[id].name))).not.toContain("Zed Extra");
+  expect(await page.evaluate(() => S.teams)).toEqual([]);
+
+  await tap(page, "[data-a=toSetup]");
+  const moved = await page.evaluate(() => {
+    const id = S.teams[0].pids[0];
+    const name = S.players[id].name;
+    teamMove(id, 1, null);
+    return name;
+  });
+  const before = await page.evaluate(() => rosterData());
+  await page.evaluate(() => render());
+  expect(await page.evaluate(() => rosterData())).toEqual(before);
+
+  await tap(page, "[data-a=go][data-v=squad]");
+  await page.locator(".sq-row", { hasText: moved }).locator("button.maybe").evaluate((el) => el.click());
+  const fromSquad = await page.evaluate(() => {
+    flushEditors();
+    alignTeams();
+    return rosterData();
+  });
+  await tap(page, "[data-a=go][data-v=setup]");
+  const fromSetup = await page.evaluate(() => rosterData());
+  expect(fromSetup.teams).toEqual(fromSquad.teams);
+  expect(fromSetup.players).toEqual(fromSquad.players);
+  expect(fromSetup.params).toEqual(fromSquad.params);
+  expect(fromSetup.teams[1].players).toContain(moved);
+  expect(fromSetup.teams[0].players).not.toContain(moved);
+
+  page.once("dialog", (d) => d.accept());
+  await page.evaluate((o) => {
+    S.teams.reverse();
+    receiveRoster(o);
+    save();
+    render();
+  }, fromSetup);
+  const imported = await page.evaluate(() => rosterData());
+  expect(imported.teams).toEqual(fromSetup.teams);
+  expect(imported.params).toEqual(fromSetup.params);
+  await page.reload();
+  const reloaded = await page.evaluate(() => rosterData());
+  expect(reloaded.teams).toEqual(fromSetup.teams);
+  expect(reloaded.params.k).toBe(fromSetup.params.k);
+  expect(reloaded.params.interval).toBe(fromSetup.params.interval);
 });
 
 test("a WhatsApp-style squad file replaces a game under way after a warning", async ({ page }) => {
