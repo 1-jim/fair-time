@@ -26,6 +26,18 @@ async function importSquad(page) {
   await expect(page.locator("#toast")).toContainText("Imported 33 names, 26 going");
 }
 
+test("coach name can be set from the squad screen", async ({ page }) => {
+  await expect(page.locator("[data-a=coachOpen]")).toHaveText("Set coach name");
+  await tap(page, "[data-a=coachOpen]");
+  await page.locator("#coachName").evaluate((el) => {
+    el.value = "Alex";
+  });
+  await tap(page, "[data-a=coachSave]");
+  await expect(page.locator("[data-a=coachOpen]")).toHaveText("Coach name: Alex");
+  await expect(page.locator("h2", { hasText: "Player notes" })).toHaveCount(0);
+  expect(await page.evaluate(() => FB.coach)).toBe("Alex");
+});
+
 test("imports a Spond export without the CDN library", async ({ page }) => {
   await importSquad(page);
   await expect(page.locator(".fchip.going b")).toHaveText("26");
@@ -67,6 +79,18 @@ test("runs a game: planned change, injury cover, summary", async ({ page }) => {
   // The recommended plan for 13 players is 4 every 5 minutes
   await page.clock.runFor(5 * MIN + 5000);
   await expect(page.locator(".call-t")).toHaveText("Swap 4 now");
+  expect(await page.locator(".call-k span").allTextContents()).toEqual(["Coming on", "", "Coming off"]);
+  const readsOnForOff = await page.locator(".pair").first().evaluate((el) => {
+    const on = el.querySelector(".pi");
+    const off = el.querySelector(".po");
+    return !!(on && off && on.compareDocumentPosition(off) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(readsOnForOff).toBe(true);
+  const swapReadsOnForOff = await page.locator(".swap").first().evaluate((el) => {
+    const chips = [...el.querySelectorAll(".chip")];
+    return chips[0]?.classList.contains("next") && chips[1]?.classList.contains("off");
+  });
+  expect(swapReadsOnForOff).toBe(true);
   await tap(page, "[data-a=callDone]");
   await expect(page.locator(".call")).toHaveCount(0);
 
@@ -90,6 +114,45 @@ test("runs a game: planned change, injury cover, summary", async ({ page }) => {
   await tap(page, "[data-a=go][data-v=summary]");
   await expect(page.locator(".lines").first()).toContainText(`${injured} was injured`);
   await expect(page.locator(".lines").first()).toContainText("didn't return");
+});
+
+test("overtime shows on the clock and a forgotten half ends itself", async ({ page }) => {
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  await tap(page, "[data-a=startDay]");
+  await tap(page, "[data-a=kickoff]");
+  await expect(page.locator(".clocks .clock").first()).toContainText("Elapsed");
+  await expect(page.locator(".clocks .clock.ot")).toContainText("Overtime");
+  await expect(page.locator("[data-live^=elapsed]")).toHaveText("0:00");
+  await expect(page.locator("[data-live^=over]").first()).toHaveText("0:00");
+
+  const half = await page.evaluate(() => H());
+  const into = await page.evaluate(() => {
+    const t = S.T[S.teams[S.active].id];
+    return clock(t) - t.halfStart;
+  });
+  await page.clock.runFor(half - into + 30 * 1000);
+  await expect(page.locator(".board")).toHaveClass(/alert/);
+  expect(await page.locator("[data-live^=over]").first().textContent()).toMatch(/^0:3/);
+
+  await page.clock.runFor(30 * 1000);
+  await expect(page.locator("#toast")).toContainText("Overtime");
+  expect(await page.evaluate(() => S.T[S.teams[S.active].id].otPing)).toBeGreaterThan(0);
+
+  const left = await page.evaluate(() => {
+    const t = S.T[S.teams[S.active].id];
+    return H() * 0.25 - (clock(t) - t.halfStart - H());
+  });
+  await page.clock.runFor(left + 400);
+  await expect(page.getByRole("dialog", { name: "Half-time changes" })).toContainText("with no tap");
+  const log = await page.evaluate(() => S.T[S.teams[S.active].id].log.filter((e) => e.type === "autoend"));
+  expect(log).toHaveLength(1);
+  expect(log[0].reason).toBe("no interaction");
+  expect(log[0].elapsed).toBeGreaterThan(log[0].over);
+
+  await tap(page, "[data-a=undo]");
+  await page.clock.runFor(1000);
+  expect(await page.evaluate(() => S.T[S.teams[S.active].id].stage)).toBe("running");
 });
 
 test("concussion cannot be cleared by the normal return option", async ({ page }) => {
@@ -256,12 +319,174 @@ test.describe("team builder", () => {
   });
 });
 
+test("player notes stay after a new session and combine across coaches", async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem("wimborne-fairtime-feedback-v1", JSON.stringify({
+        v: 1,
+        coach: "Alex",
+        records: [
+          {
+            id: "oldtag01",
+            player: playerHash("", "Alfie Sample"),
+            name: "Alfie Sample",
+            group: "",
+            event: "",
+            date: "",
+            tag: "Handling",
+            line: "old topic",
+            coach: "Alex",
+            at: 1,
+          },
+          {
+            id: "paste0001",
+            player: playerHash("", "Alfie Sample"),
+            name: "Alfie Sample",
+            group: "",
+            event: "",
+            date: "",
+            tag: "Ball catch",
+            line: "Hands early",
+            side: 1,
+            coach: "Alex",
+            at: 1,
+          },
+        ],
+      }));
+      FB = loadFB();
+    });
+    expect(await page.evaluate(() => FB.records.map((r) => r.tag))).toEqual(["Ball catch"]);
+    expect(await page.evaluate(() => localStorage.getItem("wimborne-fairtime-feedback-v1"))).not.toContain("Handling");
+    await importSquad(page);
+    expect(await page.evaluate(() => S.groupName)).toBe("Sample Rugby Club");
+    const linked = await page.evaluate(() => FB.records.find((r) => r.id === "paste0001"));
+    expect(linked.group).toBe("Sample Rugby Club");
+    expect(linked.player).toBe(await page.evaluate(() => playerHash("Sample Rugby Club", "Alfie Sample")));
+
+    await tap(page, '.sq-row:has-text("Alfie Sample") .nm');
+    await expect(page.getByText("Hands early · Alex")).toBeVisible();
+    await tap(page, '[data-tag="Fix & pass"][data-side="1"]');
+    await expect(page.locator("#toast")).toContainText("Committed saved");
+    await tap(page, '[data-tag="Fix & pass"][data-side="1"]');
+    await expect(page.locator("#toast")).toContainText("Committed saved");
+    await expect(page.locator(".splittally")).toHaveText("+2");
+
+    const stored = await page.evaluate(() => ({
+      session: localStorage.getItem("wimborne-fairtime-v1"),
+      notes: localStorage.getItem("wimborne-fairtime-feedback-v1"),
+      summary: summaryText(),
+    }));
+    expect(stored.session).not.toContain("example.com");
+    expect(stored.session).not.toContain("Fix & pass");
+    expect(stored.notes).toContain("Fix & pass");
+    expect(stored.notes).toContain("Committed");
+    expect(stored.notes).not.toContain("example.com");
+    expect(stored.summary).not.toContain("Fix & pass");
+
+    await tap(page, "[data-a=closeModal]");
+    await tap(page, "[data-a=modal][data-m=menu]");
+    await tap(page, "[data-a=modal][data-m=new]");
+    await tap(page, "[data-a=newConfirm]");
+    expect(await page.evaluate(() => Object.keys(S.players).length)).toBe(0);
+    expect(await page.evaluate(() => FB.records.some((r) => r.line === "Committed" && r.side === 1))).toBe(true);
+
+    await importSquad(page);
+    await expect(page.locator('.sq-row:has-text("Alfie Sample") .fbmark')).toHaveText("2 notes");
+
+    const extra = await page.evaluate(() => ({
+      kind: "fair-time-feedback",
+      v: 1,
+      records: [
+        {
+          id: "second01",
+          player: playerHash(S.groupName, "Alfie Sample"),
+          name: "Alfie Sample",
+          group: S.groupName,
+          event: S.eventName,
+          date: S.eventDate,
+          tag: "Fix & pass",
+          line: "Committed",
+          side: 1,
+          coach: "Sam",
+          at: 2,
+        },
+      ],
+    }));
+    const file = path.join(require("os").tmpdir(), "fair-time-notes-test.json");
+    require("fs").writeFileSync(file, JSON.stringify(extra));
+    await tap(page, "[data-a=modal][data-m=menu]");
+    await tap(page, "[data-a=modal][data-m=notes]");
+    await page.setInputFiles("input[data-ch=feedbackFile]", file);
+    await expect(page.locator("#toast")).toContainText("Added 1 note");
+    await expect(page.getByText("Reaffirmed by 2 coaches")).toBeVisible();
+    await page.setInputFiles("input[data-ch=feedbackFile]", file);
+    await expect(page.locator("#toast")).toContainText("already on this phone");
+    expect(await page.evaluate(() => FB.records.filter((r) => r.name === "Alfie Sample" && r.tag === "Fix & pass").length)).toBe(3);
+  });
+
+  test("a match card can record a player note", async ({ page }) => {
+    await importSquad(page);
+    await page.evaluate(() => {
+      FB.coach = "Alex";
+      saveFB();
+    });
+    await tap(page, "[data-a=toSetup]");
+    await tap(page, "[data-a=startDay]");
+    await tap(page, ".chips .chip.field, .chips .chip.off");
+    await expect(page.getByText("The collision and the line.")).toBeVisible();
+    await expect(page.getByText("Shape and moving the ball.")).toBeVisible();
+    await expect(page.getByText("The breakdown and the set piece.")).toBeVisible();
+    await expect(page.locator('[data-tag="Fix & pass"][data-side="1"]')).toHaveText("Committed");
+    await expect(page.locator('[data-tag="Fix & pass"][data-side="-1"]')).toHaveText("Shovelled");
+    await expect(page.locator('[data-tag="Tackle height"][data-side="1"]')).toHaveText("Low contact");
+    await expect(page.locator('[data-tag="Ruck arrival"][data-side="1"]')).toHaveText("Clean over");
+    await page.locator("#fbTreds").evaluate((el) => {
+      el.value = "Helped a teammate up";
+    });
+    await tap(page, '[data-tag="Fix & pass"][data-side="1"]');
+    await expect(page.locator("#toast")).toContainText("Committed saved");
+    await expect(page.getByText("Noted by Alex")).toBeVisible();
+    await expect(page.locator(".splittally").first()).toHaveText("+1");
+    await tap(page, '[data-tag="Fix & pass"][data-side="-1"]');
+    await expect(page.locator("#toast")).toContainText("Shovelled saved");
+    await expect(page.getByText("A positive behaviour.")).toBeVisible();
+    await page.locator("#fbTreds").evaluate((el) => {
+      el.value = "Helped a teammate up";
+    });
+    await tap(page, '[data-tag="Teamwork"]');
+    await expect(page.locator("#toast")).toContainText("Teamwork saved");
+    const lines = await page.evaluate(() =>
+      FB.records.filter((r) => r.coach === "Alex").map((r) => r.tag + ":" + r.side + ":" + r.line),
+    );
+    expect(lines).toContain("Fix & pass:1:Committed");
+    expect(lines).toContain("Fix & pass:-1:Shovelled");
+    expect(lines).not.toContain("Fix & pass:1:Helped a teammate up");
+    expect(lines).toContain("Teamwork:0:Helped a teammate up");
+    expect(lines).not.toContain("Teamwork:0:Committed");
+    expect(await page.evaluate(() => summaryText())).not.toContain("Fix & pass");
+    expect(await page.evaluate(() => summaryText())).not.toContain("Teamwork");
+  });
+
+  test("player id is a hash of the group name and the player name", async ({ page }) => {
+    const got = await page.evaluate(() => ({
+      hash: playerHash("Sample Rugby Club", "Alfie Sample"),
+      again: playerHash("  sample rugby   club ", "alfie sample"),
+      other: playerHash("Other Group", "Alfie Sample"),
+      email: playerHash("", "parent@example.com"),
+    }));
+    const crypto = require("crypto");
+    const expectHex = crypto.createHash("sha256").update("sample rugby club\nalfie sample").digest("hex");
+    expect(got.hash).toBe(expectHex);
+    expect(got.again).toBe(got.hash);
+    expect(got.other).not.toBe(got.hash);
+    expect(got.hash).not.toBe(got.email);
+  });
+
 test("squad file round-trips teams, marks and settings onto a fresh phone", async ({ page }) => {
   const fs = require("fs");
   const os = require("os");
   await importSquad(page);
   const row = page.locator('.sq-row:has(button.going[aria-pressed="true"])').first();
-  const who = await row.locator(".nm").textContent();
+  const who = await row.locator(".nm").evaluate((el) => el.childNodes[0].textContent.trim());
   await row.locator("button.maybe").evaluate((el) => el.click());
 
   await page.locator("input.event").fill("U12 home");

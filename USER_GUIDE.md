@@ -19,8 +19,9 @@ When someone doesn't turn up, gets injured or arrives late, you tap their name a
 3. [On the touchline](#3-on-the-touchline)
 4. [When things change](#4-when-things-change)
 5. [After the games](#5-after-the-games)
-6. [Good to know](#6-good-to-know)
-7. [Feedback](#feedback)
+6. [Player notes](#6-player-notes)
+7. [Good to know](#7-good-to-know)
+8. [Feedback](#feedback)
 
 ---
 
@@ -45,7 +46,7 @@ Open it once with signal so it's saved on your phone. After that it works with n
    - **Android:** choose **Fair Time** from the share menu. The squad loads straight in.
    - **iPhone:** save the file to Files. Open Fair Time and tap **Import Spond file**.
 
-Fair Time reads only names and responses. Contact details, addresses and dates of birth in the Spond file are ignored and never stored. Importing a Spond file replaces the squad already on this phone: names from an earlier event are removed, and the teams are cleared so you can set them up for this event.
+Fair Time reads names, responses and the group name. Contact details, addresses and dates of birth in the Spond file are ignored and never stored. The group name is how player notes stay with the same child each week. Importing a Spond file replaces the squad already on this phone: names from an earlier event are removed, and the teams are cleared so you can set them up for this event.
 
 No Spond file? Tap **Paste names** and paste a list, one name per line. You can also paste a **Share team list** message from WhatsApp. If this phone already has a squad, Fair Time asks you to confirm, then replaces that list. The event title and date stay. The teams are cleared so you can set them up again.
 
@@ -142,23 +143,24 @@ The clock is at the top, with a countdown to the next change. Below it, every pl
 | 🟦 Blue | On the bench |
 | ⬜ Grey | Not available (injured, gone home, not arrived) |
 
-Each card shows the minutes played so far. It also shows how far that player is ahead (+) or behind (-) their fair share. The **Next change** list always shows exactly who swaps next.
+Each card shows the minutes played so far. It also shows how far that player is ahead (+) or behind (-) their fair share. The **Next change** list reads left to right: the player coming on, then the player they are coming on for.
 
 With two teams on one phone, use the tabs at the top. A red dot on a tab means that team has a change due.
 
 ### Running a game
 
 1. Tap **Kick off**.
-2. When a change is due, the phone beeps and a full-screen alert shows the pairs: **coming off** on the left, **going on** on the right.
+2. When a change is due, the phone beeps and a full-screen alert shows the pairs. The player **coming on** is on the left. The player they are coming on for is on the right.
 3. Make the swaps, then tap **Done**.
    - Ball not dead yet? Tap **Wait 30 sec**.
    - Want to keep a pair on? Tap that pair to leave it out.
    - Not the right moment at all? Tap **Skip this change**.
 4. Stoppage before the change is due? Tap **Sub now** to do it early.
-5. When time is up, the clock turns red but keeps running. Tap **Half-time** or **Full-time** when the referee blows.
-6. At half-time and between games, Fair Time suggests a bigger reshuffle to even things out. Check it, then tap **Done**.
+5. The clock shows **Elapsed** on the left and **Overtime** on the right. Overtime is how far this half has run past its length, from stoppages and delays. The board turns red, and the phone beeps every 30 seconds.
+6. Tap **Half-time** or **Full-time** when the referee blows. If a half runs 25% over its length with no tap, Fair Time ends it and records that nobody tapped.
+7. At half-time and between games, Fair Time suggests a bigger reshuffle to even things out. Check it, then tap **Done**.
 
-**Pause** stops the clock for long stoppages. **Undo** reverses your last action if you tap the wrong thing.
+**Pause** stops the clock for a long stoppage, so that time is not added to overtime. **Undo** reverses your last action if you tap the wrong thing. Undoing an automatic end leaves the half running, so you can tap **Half-time** or **Full-time** yourself.
 
 The screen stays on while a game is running. Keep the sound on: iPhones don't vibrate for web apps.
 
@@ -179,6 +181,7 @@ Tap any player's card for options.
 | Manual swap | Pick a name under **Swap off for** or **Bring on for** | Swaps just those two. |
 | Move between teams | **Move to** (before kick-off or at full-time) | Moves them with their minutes. |
 | Not on the list at all | **Add player** at the bottom | Adds them to the bench. |
+| Something to work on | The green or red side of a split under **Notes**, such as **Low contact** | Counts a good execution, or an error, for that player and this event. |
 
 To change the plan mid-game, for example in heavy rain or with more players than expected, tap **Sub plan**.
 
@@ -207,11 +210,53 @@ Buttons at the top of the Summary:
 
 ### Starting next week
 
-**Menu > Start a new session** clears everything on the phone. It warns you first and offers a backup, so export anything you want to keep.
+**Menu > Start a new session** clears the squad, the teams and the minutes. It warns you first and offers a backup. Player notes are kept.
 
 ---
 
-## 6. Good to know
+## 6. Player notes
+
+Tap a player's name on the Squad screen, or open their card on the Match screen. Under **Notes**, each skill is a split. Tap the green side when it is done well, or the red side for the error. Each tap counts for this event, so you can see the balance on the row, for example **+2 -1**.
+
+**Defence** is the collision and the line.
+
+- **Tackle height**: **Low contact** below the sternum, or **Upright / high**.
+- **Tracking**: **Hips boxed**, feet square and the angle cut off, or **Ankles broken**.
+- **Line speed**: **Squeeze**, the line up together, or **Dog leg**, one player shot out or left behind.
+
+**Attack** is shape and moving the ball.
+
+- **Fix & pass**: **Committed**, the defender was drawn first, or **Shovelled**, the pass went early.
+- **Ball catch**: **Hands early**, or **Body catch**.
+- **Support line**: **Deception**, a real running line, or **Flat / static**.
+
+**Contest** is the breakdown and the set piece.
+
+- **Ruck arrival**: **Clean over**, or **Flopped**.
+- **Body shape**: **Tower**, a flat back, or **Hinged** from the waist.
+- **Ball presentation**: **Long placement** away from the contest, or **Sloppy release**.
+
+Under **TREDS**, tap a positive behaviour: teamwork, respect, enjoyment, discipline or sportsmanship. The TREDS box is separate, for example "helped a teammate up".
+
+Tap **Set coach name** on the Squad screen. Every note is marked with that name, so the same point from two coaches shows as reaffirmed. If the name is not set yet, the first note asks for it.
+
+Notes stay on this phone when you start a new session or import next week's Spond file. The same spelling of a name, in the same Spond group, keeps the same notes. Two age groups on one phone stay separate because the group name from the file is part of the match.
+
+On the squad list, a result with a number means that many taps, or that many coaches when more than one coach saw it. **Low contact · 2** has been tapped twice, or seen by two coaches.
+
+### Sharing notes between coaches
+
+**Menu > Player notes > Share notes file** sends a file, which you can pass on in WhatsApp. Another coach taps **Import notes file** on their phone. Importing the same file again does not add a second copy.
+
+When two coaches note the same topic for the same player, it shows as reaffirmed, with both names. The same coach seeing it again at a later session stays as one coach, and both sessions are listed.
+
+The match summary and the minutes file do not include these notes. Share the notes file with the coaches who should read them.
+
+You can remove a note you wrote. Another coach's note stays until they remove it on their own phone.
+
+---
+
+## 7. Good to know
 
 - **One phone per team** works best if coaches are on different pitches. Export the squad file to the other phone before you lock in, then each phone runs its own game. Minutes are not shared live between phones.
 - **Everything stays on your phone.** Nothing is sent to a server, and no player data is stored online.

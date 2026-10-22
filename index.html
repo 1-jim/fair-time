@@ -390,7 +390,101 @@
       }
       .sq-row .nm {
         flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+        background: none;
+        border: 0;
+        padding: 4px 0;
+        min-height: 44px;
         font: 600 19px var(--cond);
+        color: inherit;
+      }
+      .fbmark {
+        font: 600 13px/1.2 "Barlow", system-ui, sans-serif;
+        color: var(--muted);
+      }
+      .fbmark.on {
+        color: var(--pitch);
+      }
+      .tagrow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .splitname {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        margin-top: 10px;
+        font: 600 15px var(--cond);
+      }
+      .splittally {
+        color: var(--muted);
+        font: 600 15px var(--cond);
+      }
+      .split {
+        display: flex;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .split button {
+        flex: 1;
+        min-height: 44px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        font: 600 16px var(--cond);
+        color: inherit;
+      }
+      .split .pos {
+        background: var(--field-t);
+        border-left: 6px solid var(--field);
+      }
+      .split .neg {
+        background: var(--off-t);
+        border-right: 6px solid var(--off);
+      }
+      .tagb,
+      .fbx {
+        min-height: 44px;
+        padding: 0 12px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        font: 600 16px var(--cond);
+        color: inherit;
+      }
+      .fbitem {
+        margin-top: 12px;
+      }
+      .fbhead {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .fbhead span {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .fbitem ul {
+        list-style: none;
+        padding: 0;
+        margin: 6px 0 0;
+        display: grid;
+        gap: 6px;
+      }
+      .fbitem li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .fbitem li span {
+        flex: 1;
       }
       .seg {
         display: inline-flex;
@@ -763,19 +857,42 @@
         font: 600 19px var(--cond);
         opacity: 0.92;
       }
+      .clocks {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 4px 0 2px;
+      }
       .clock {
-        font: 700 clamp(76px, 23vw, 124px)/0.92 var(--cond);
+        flex: 1;
+        font: 700 clamp(48px, 15vw, 84px)/0.92 var(--cond);
         font-variant-numeric: tabular-nums;
         letter-spacing: -1px;
-        margin: 4px 0 2px;
+        margin: 0;
+      }
+      .clock.ot {
+        text-align: right;
+      }
+      .clock.ot:not(.on) {
+        opacity: 0.55;
+      }
+      .clock.ot.on span {
+        color: #ffe08a;
+      }
+      .board.otping .clock.ot.on span {
+        animation: pulse 0.35s steps(2) 6;
       }
       .clock small {
         display: block;
         font-size: 18px;
         font-weight: 600;
-        opacity: 0.75;
+        opacity: 0.85;
         letter-spacing: 0;
-        margin-top: 4px;
+        margin: 0;
+      }
+      .clock small.of {
+        margin-top: 2px;
+        font-size: 16px;
       }
       .due {
         font: 600 21px/1.2 var(--cond);
@@ -1139,6 +1256,43 @@
       "use strict";
       const MIN = 60000;
       const KEY = "wimborne-fairtime-v1";
+      /* Player notes live here, so starting a new session can clear the match and keep them. */
+      const FB_KEY = "wimborne-fairtime-feedback-v1";
+      const FB_PILLARS = [
+        {
+          id: "defence",
+          name: "Defence",
+          hint: "The collision and the line.",
+          actions: [
+            { tag: "Tackle height", pos: "Low contact", neg: "Upright / high" },
+            { tag: "Tracking", pos: "Hips boxed", neg: "Ankles broken" },
+            { tag: "Line speed", pos: "Squeeze", neg: "Dog leg" },
+          ],
+        },
+        {
+          id: "attack",
+          name: "Attack",
+          hint: "Shape and moving the ball.",
+          actions: [
+            { tag: "Fix & pass", pos: "Committed", neg: "Shovelled" },
+            { tag: "Ball catch", pos: "Hands early", neg: "Body catch" },
+            { tag: "Support line", pos: "Deception", neg: "Flat / static" },
+          ],
+        },
+        {
+          id: "contest",
+          name: "Contest",
+          hint: "The breakdown and the set piece.",
+          actions: [
+            { tag: "Ruck arrival", pos: "Clean over", neg: "Flopped" },
+            { tag: "Body shape", pos: "Tower", neg: "Hinged" },
+            { tag: "Ball presentation", pos: "Long placement", neg: "Sloppy release" },
+          ],
+        },
+      ];
+      const FB_SKILL = FB_PILLARS.map((p) => p.actions.map((a) => a.tag)).reduce((a, b) => a.concat(b), []);
+      const FB_TREDS = ["Teamwork", "Respect", "Enjoyment", "Discipline", "Sportsmanship"];
+      const FB_TAGS = FB_SKILL.concat(FB_TREDS);
       const $ = (s) => document.querySelector(s);
       const uid = () => Math.random().toString(36).slice(2, 10);
       const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -1175,6 +1329,7 @@
           created: Date.now(),
           eventName: "",
           eventDate: "",
+          groupName: "",
           params: {
             teams: 2,
             onField: 9,
@@ -1212,7 +1367,8 @@
         } catch (e) {}
       }
       let S = load() || fresh();
-      const UI = { sheet: null, modal: null, simCache: {}, strat: null, squadFilter: [], squadKeep: [], teamSel: null, teamUndo: [] };
+      let FB = loadFB();
+      const UI = { sheet: null, modal: null, simCache: {}, strat: null, squadFilter: [], squadKeep: [], teamSel: null, teamUndo: [], coachBack: "" };
       let DL = null;
       if (window.claude && typeof window.claude.use === "function") {
         window.claude
@@ -1602,10 +1758,14 @@
         }
       }
       function parseWorkbook(sheets) {
-        const out = { event: "", date: "", rows: [] };
+        const out = { event: "", date: "", group: "", rows: [] };
         const meta = (A) => {
           if (!out.event && A[0] && A[0][0]) out.event = String(A[0][0]).trim();
           if (!out.date && A[1] && A[1][0]) out.date = String(A[1][0]).trim();
+          if (!out.group && A[2] && A[2][0]) {
+            const g = String(A[2][0]).trim();
+            if (g && !/^(going|not going|unanswered|name|status)\b/i.test(g)) out.group = g;
+          }
         };
         // 1. Spond "For import" layout: a header row with Status and Name
         for (const A of sheets) {
@@ -1679,6 +1839,18 @@
         });
         if (res.event) S.eventName = res.event;
         if (res.date) S.eventDate = res.date;
+        if (res.group) {
+          S.groupName = res.group;
+          const names = new Set(res.rows.map((r) => normKey(r.name)));
+          let changed = false;
+          FB.records.forEach((rec) => {
+            if (rec.group || !names.has(normKey(rec.name))) return;
+            rec.group = res.group;
+            rec.player = playerHash(res.group, rec.name);
+            changed = true;
+          });
+          if (changed) saveFB();
+        }
         if (replace) {
           S.order = S.order.filter((id) => {
             const keep = seen.has(S.players[id].name.toLowerCase());
@@ -1691,6 +1863,335 @@
           UI.teamSel = null;
           UI.simCache = {};
         }
+      }
+
+      /* ---------- Player notes ---------- */
+      function loadFB() {
+        try {
+          const o = JSON.parse(localStorage.getItem(FB_KEY) || "null");
+          if (!o || o.v !== 1 || !Array.isArray(o.records)) return { v: 1, coach: "", records: [] };
+          const records = o.records.map(cleanFbRecord).filter(Boolean);
+          const fb = { v: 1, coach: String(o.coach || "").slice(0, 40), records };
+          if (records.length !== o.records.length) {
+            try {
+              localStorage.setItem(FB_KEY, JSON.stringify(fb));
+            } catch (e) {}
+          }
+          return fb;
+        } catch (e) {
+          return { v: 1, coach: "", records: [] };
+        }
+      }
+      function saveFB() {
+        try {
+          localStorage.setItem(FB_KEY, JSON.stringify(FB));
+          return true;
+        } catch (e) {
+          toast("Couldn't save the note on this phone.");
+          return false;
+        }
+      }
+      function normKey(s) {
+        return String(s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      }
+      function rotr(x, n) {
+        return (x >>> n) | (x << (32 - n));
+      }
+      function sha256(str) {
+        const K = new Uint32Array([
+          0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+        ]);
+        const msg = new TextEncoder().encode(str);
+        const n = Math.ceil((msg.length + 9) / 64) * 64;
+        const buf = new Uint8Array(n);
+        buf.set(msg);
+        buf[msg.length] = 0x80;
+        const view = new DataView(buf.buffer);
+        view.setUint32(n - 4, msg.length * 8, false);
+        let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+        let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+        const w = new Uint32Array(64);
+        for (let i = 0; i < n; i += 64) {
+          for (let t = 0; t < 16; t++) w[t] = view.getUint32(i + t * 4, false);
+          for (let t = 16; t < 64; t++) {
+            const s0 = rotr(w[t - 15], 7) ^ rotr(w[t - 15], 18) ^ (w[t - 15] >>> 3);
+            const s1 = rotr(w[t - 2], 17) ^ rotr(w[t - 2], 19) ^ (w[t - 2] >>> 10);
+            w[t] = (w[t - 16] + s0 + w[t - 7] + s1) | 0;
+          }
+          let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+          for (let t = 0; t < 64; t++) {
+            const s1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+            const ch = (e & f) ^ (~e & g);
+            const t1 = (h + s1 + ch + K[t] + w[t]) | 0;
+            const s0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+            const maj = (a & b) ^ (a & c) ^ (b & c);
+            const t2 = (s0 + maj) | 0;
+            h = g;
+            g = f;
+            f = e;
+            e = (d + t1) | 0;
+            d = c;
+            c = b;
+            b = a;
+            a = (t1 + t2) | 0;
+          }
+          h0 = (h0 + a) | 0;
+          h1 = (h1 + b) | 0;
+          h2 = (h2 + c) | 0;
+          h3 = (h3 + d) | 0;
+          h4 = (h4 + e) | 0;
+          h5 = (h5 + f) | 0;
+          h6 = (h6 + g) | 0;
+          h7 = (h7 + h) | 0;
+        }
+        return [h0, h1, h2, h3, h4, h5, h6, h7].map((x) => (x >>> 0).toString(16).padStart(8, "0")).join("");
+      }
+      function playerHash(group, name) {
+        return sha256(normKey(group) + "\n" + normKey(name));
+      }
+      function fbFor(name, group) {
+        const id = playerHash(group || "", name);
+        return FB.records.filter((r) => r.player === id);
+      }
+      function fbSummary(records) {
+        const byTag = {};
+        records.forEach((r) => {
+          (byTag[r.tag] = byTag[r.tag] || []).push(r);
+        });
+        return FB_TAGS.filter((t) => byTag[t]).map((tag) => {
+          const rows = byTag[tag].slice().sort((a, b) => (b.at || 0) - (a.at || 0));
+          const coaches = [];
+          rows.forEach((r) => {
+            if (!coaches.includes(r.coach)) coaches.push(r.coach);
+          });
+          return { tag, coaches, rows };
+        });
+      }
+      function fbPlayers() {
+        const map = new Map();
+        FB.records.forEach((r) => {
+          if (!map.has(r.player)) map.set(r.player, { name: r.name, group: r.group || "", records: [] });
+          const p = map.get(r.player);
+          p.records.push(r);
+          if (r.name) p.name = r.name;
+          if (r.group) p.group = r.group;
+        });
+        return [...map.values()].sort((a, b) => a.name.localeCompare(b.name) || a.group.localeCompare(b.group));
+      }
+      function fbAction(tag) {
+        for (let i = 0; i < FB_PILLARS.length; i++) {
+          const action = FB_PILLARS[i].actions.find((a) => a.tag === tag);
+          if (action) return action;
+        }
+        return null;
+      }
+      function fbOutcome(tag, side) {
+        const action = fbAction(tag);
+        if (!action) return "";
+        return side < 0 ? action.neg : action.pos;
+      }
+      function fbMark(name) {
+        const groups = fbSummary(fbFor(name, S.groupName || ""));
+        if (!groups.length) return `<span class="fbmark">Note</span>`;
+        const top = groups.slice().sort((a, b) => b.coaches.length - a.coaches.length || b.rows.length - a.rows.length || a.tag.localeCompare(b.tag))[0];
+        const lead = fbOutcome(top.tag, top.rows.filter((r) => r.side < 0).length > top.rows.filter((r) => r.side > 0).length ? -1 : 1) || top.tag;
+        const label = top.coaches.length > 1 ? `${lead} · ${top.coaches.length}` : groups.length === 1 ? (top.rows.length > 1 ? `${lead} · ${top.rows.length}` : lead) : `${groups.length} notes`;
+        return `<span class="fbmark on">${esc(label)}</span>`;
+      }
+      function fbTally(pid, tag) {
+        const event = String(S.eventName || "");
+        const date = String(S.eventDate || "");
+        const rows = fbFor(nm(pid), S.groupName || "").filter((r) => r.tag === tag && r.event === event && r.date === date);
+        let pos = 0;
+        let neg = 0;
+        rows.forEach((r) => {
+          if (r.side < 0) neg++;
+          else if (r.side > 0) pos++;
+        });
+        const bits = [];
+        if (pos) bits.push("+" + pos);
+        if (neg) bits.push("-" + neg);
+        return bits.join(" ");
+      }
+      function fbListHtml(records) {
+        const groups = fbSummary(records);
+        if (!groups.length) return `<p class="muted">No notes yet.</p>`;
+        return groups
+          .map((g) => {
+            if (!fbAction(g.tag)) {
+              const head = g.coaches.length > 1 ? `Reaffirmed by ${g.coaches.length} coaches: ${joinList(g.coaches)}` : `Noted by ${g.coaches[0]}`;
+              const lines = g.rows
+                .map((r) => {
+                  const when = [r.event, r.date].filter(Boolean).join(", ") || "This session";
+                  const drop = r.coach === FB.coach ? `<button class="fbx" data-a="fbDrop" data-id="${esc(r.id)}">Remove</button>` : "";
+                  return `<li><span>${esc(r.coach)} · ${esc(when)}${r.line ? " · " + esc(r.line) : ""}</span>${drop}</li>`;
+                })
+                .join("");
+              return `<div class="fbitem"><div class="fbhead"><b>${esc(g.tag)}</b><span>${esc(head)}</span></div><ul>${lines}</ul></div>`;
+            }
+            const buckets = [];
+            g.rows.forEach((r) => {
+              const key = [r.side, r.coach, r.event, r.date].join("\n");
+              let bucket = buckets.find((b) => b.key === key);
+              if (!bucket) {
+                bucket = { key, side: r.side, line: r.line, coach: r.coach, event: r.event, date: r.date, n: 0, id: r.id, at: r.at || 0 };
+                buckets.push(bucket);
+              }
+              bucket.n++;
+              if ((r.at || 0) >= bucket.at) {
+                bucket.at = r.at || 0;
+                bucket.id = r.id;
+              }
+            });
+            const byLine = {};
+            buckets.forEach((b) => {
+              (byLine[b.line] = byLine[b.line] || []).push(b);
+            });
+            const blocks = Object.keys(byLine)
+              .map((line) => {
+                const rows = byLine[line];
+                const coaches = [];
+                rows.forEach((b) => {
+                  if (!coaches.includes(b.coach)) coaches.push(b.coach);
+                });
+                const head = coaches.length > 1 ? `Reaffirmed by ${coaches.length} coaches: ${joinList(coaches)}` : `Noted by ${coaches[0]}`;
+                const items = rows
+                  .map((b) => {
+                    const when = [b.event, b.date].filter(Boolean).join(", ") || "This session";
+                    const drop = b.coach === FB.coach ? `<button class="fbx" data-a="fbDrop" data-id="${esc(b.id)}">Remove</button>` : "";
+                    return `<li><span>${esc(b.line)}${b.n > 1 ? " · " + b.n : ""} · ${esc(b.coach)} · ${esc(when)}</span>${drop}</li>`;
+                  })
+                  .join("");
+                return `<div class="fbhead"><b>${esc(line)}</b><span>${esc(head)}</span></div><ul>${items}</ul>`;
+              })
+              .join("");
+            return `<div class="fbitem"><div class="fbhead"><b>${esc(g.tag)}</b></div>${blocks}</div>`;
+          })
+          .join("");
+      }
+      function feedbackBlock(pid, src) {
+        const pillars = FB_PILLARS.map((p) => {
+          const rows = p.actions
+            .map((a) => {
+              const tally = fbTally(pid, a.tag);
+              return `<div class="splitname"><span>${esc(a.tag)}</span>${tally ? `<span class="splittally">${esc(tally)}</span>` : ""}</div><div class="split"><button class="pos" data-a="fbTag" data-p="${pid}" data-tag="${esc(a.tag)}" data-side="1" data-src="${src || ""}">${esc(a.pos)}</button><button class="neg" data-a="fbTag" data-p="${pid}" data-tag="${esc(a.tag)}" data-side="-1" data-src="${src || ""}">${esc(a.neg)}</button></div>`;
+            })
+            .join("");
+          return `<div class="grp">${esc(p.name)}</div><p class="small muted">${esc(p.hint)}</p>${rows}`;
+        }).join("");
+        const treds = FB_TREDS.map((t) => `<button class="tagb" data-a="fbTag" data-p="${pid}" data-tag="${esc(t)}" data-src="${src || ""}">${esc(t)}</button>`).join("");
+        return `<div class="grp">Notes</div><p class="small muted">Tap the green side when it is done well, or the red side for the error. Each tap counts for this event.</p>${pillars}<div class="grp">TREDS</div><p class="small muted">A positive behaviour. Text in this box is saved with the behaviour you tap.</p><div class="tagrow">${treds}</div><div class="add"><input id="fbTreds" maxlength="80" placeholder="Optional detail, such as helped a teammate up" autocomplete="off"></div>${fbListHtml(fbFor(nm(pid), S.groupName || ""))}`;
+      }
+      function allNotesHtml() {
+        const players = fbPlayers();
+        if (!players.length) return `<p class="muted">No notes yet. Tap a player's name on the squad, or open them from the match.</p>`;
+        const g = S.groupName || "";
+        const mine = g ? players.filter((p) => p.group === g) : players;
+        const rest = g ? players.filter((p) => p.group !== g) : [];
+        const block = (list) => list.map((p) => `<h3>${esc(p.name)}</h3>${fbListHtml(p.records)}`).join("");
+        let h = block(mine);
+        if (rest.length) h += `<div class="grp">Other groups</div>` + rest.map((p) => `<h3>${esc(p.name)}${p.group ? ` <span class="muted small">${esc(p.group)}</span>` : ""}</h3>${fbListHtml(p.records)}`).join("");
+        return h;
+      }
+      function addFb(pid, tag, line, side) {
+        const action = fbAction(tag);
+        if ((!action && !FB_TREDS.includes(tag)) || !FB.coach) return;
+        const name = nm(pid);
+        const group = S.groupName || "";
+        const player = playerHash(group, name);
+        const event = String(S.eventName || "").replace(/\s+/g, " ").trim().slice(0, 120);
+        const date = String(S.eventDate || "").replace(/\s+/g, " ").trim().slice(0, 120);
+        const pol = action ? (Number(side) < 0 ? -1 : 1) : 0;
+        const text = action ? fbOutcome(tag, pol) : String(line || "").replace(/\s+/g, " ").trim().slice(0, 80);
+        if (!action && FB.records.some((r) => r.player === player && r.coach === FB.coach && r.event === event && r.date === date && r.tag === tag && r.line === text)) {
+          toast(tag + " already noted for this session");
+          return;
+        }
+        const rec = { id: uid(), player, name, group, event, date, tag, line: text, side: pol, coach: FB.coach, at: Date.now() };
+        FB.records.push(rec);
+        if (!saveFB()) FB.records.pop();
+        else toast((action ? text : tag) + " saved");
+      }
+      function cleanFbRecord(r) {
+        if (!r || typeof r !== "object") return null;
+        const tag = FB_TAGS.includes(r.tag) ? r.tag : "";
+        const id = String(r.id || "").trim();
+        const name = cleanName(r.name).slice(0, 80);
+        const coach = String(r.coach || "").replace(/\s+/g, " ").trim().slice(0, 40);
+        const group = String(r.group || "").replace(/\s+/g, " ").trim().slice(0, 80);
+        const player = String(r.player || "").trim().toLowerCase();
+        if (!tag || !/^[a-z0-9]{6,16}$/.test(id) || !name || !coach || player !== playerHash(group, name)) return null;
+        const action = fbAction(tag);
+        let side = 0;
+        let line = String(r.line || "").replace(/\s+/g, " ").trim().slice(0, 80);
+        if (action) {
+          side = Number(r.side) === -1 ? -1 : Number(r.side) === 1 ? 1 : 0;
+          if (!side) return null;
+          const expect = fbOutcome(tag, side);
+          if (line && line !== expect) return null;
+          line = expect;
+        }
+        return {
+          id,
+          player,
+          name,
+          group,
+          event: String(r.event || "").replace(/\s+/g, " ").trim().slice(0, 120),
+          date: String(r.date || "").replace(/\s+/g, " ").trim().slice(0, 120),
+          tag,
+          line,
+          side,
+          coach,
+          at: Number.isFinite(+r.at) ? +r.at : 0,
+        };
+      }
+      function mergeFeedback(data) {
+        if (!data || data.kind !== "fair-time-feedback" || data.v !== 1 || !Array.isArray(data.records)) throw new Error("That file isn't a player notes file.");
+        let added = 0;
+        let dup = 0;
+        const have = new Set(FB.records.map((r) => r.id));
+        data.records.forEach((raw) => {
+          const r = cleanFbRecord(raw);
+          if (!r) return;
+          const same = have.has(r.id) || FB.records.some((x) => x.coach === r.coach && x.player === r.player && x.event === r.event && x.date === r.date && x.tag === r.tag && x.line === r.line && x.side === r.side && x.at === r.at);
+          if (same) {
+            dup++;
+            return;
+          }
+          FB.records.push(r);
+          have.add(r.id);
+          added++;
+        });
+        if (added && !saveFB()) {
+          FB.records.splice(FB.records.length - added, added);
+          throw new Error("Couldn't save the notes on this phone.");
+        }
+        return { added, dup };
+      }
+      function fbImportToast(r) {
+        const n = (x) => x + (x === 1 ? " note" : " notes");
+        if (r.added && r.dup) return `Added ${n(r.added)}, ${r.dup} already on this phone`;
+        if (r.added) return `Added ${n(r.added)}`;
+        if (r.dup) return "Those notes are already on this phone";
+        return "That file isn't a player notes file.";
+      }
+      function feedbackFile() {
+        return {
+          kind: "fair-time-feedback",
+          v: 1,
+          records: FB.records.map((r) => ({
+            id: r.id,
+            player: r.player,
+            name: r.name,
+            group: r.group || "",
+            event: r.event || "",
+            date: r.date || "",
+            tag: r.tag,
+            line: r.line || "",
+            coach: r.coach,
+            at: r.at || 0,
+          })),
+        };
       }
 
       /* ---------- Teams ---------- */
@@ -1788,6 +2289,8 @@
             callType: null,
             toggle: [],
             ot: false,
+            otPing: 0,
+            otStopAt: 0,
           };
           apply(t, breakPairs(t), "lineup");
           S.T[tm.id] = t;
@@ -2178,8 +2681,10 @@
           }
           const subs = t.log.filter((e) => e.g === gOnly && e.type === "sub").length;
           L.push({ k: "", txt: `${subs} swaps during play this game.` });
+          t.log.filter((e) => e.g === gOnly && e.type === "autoend").forEach((e) => L.push({ k: "", txt: autoEndText(e) }));
           return L;
         }
+        t.log.filter((e) => e.type === "autoend").forEach((e) => L.push({ k: "", txt: autoEndText(e) }));
         const thr = P.outlier * MIN;
         const eventful = new Set(
           t.log.filter((e) => ["injured", "concussed", "arrived", "absent", "lent"].includes(e.type)).map((e) => e.pid),
@@ -2264,6 +2769,8 @@
         ids.forEach((id) => c[S.players[id].resp]++);
         const lock = S.started;
         let h = `<img class="crest ${ids.length ? "sm" : ""}" src="${LOGO}" alt="Wimborne RFC crest">${eventTitle(true)}`;
+        if (S.groupName) h += `<p class="muted">${esc(S.groupName)}</p>`;
+        h += `<div class="row" style="margin:12px 0"><button class="btn" data-a="coachOpen">${FB.coach ? `Coach name: ${esc(FB.coach)}` : "Set coach name"}</button></div>`;
         if (lock) {
           h += `<div class="note">Match day is under way, so the squad is locked. Add a late player from the Match screen, or start a new session from the menu.</div>`;
           if (ids.length) h += rosterBar("locked");
@@ -2280,7 +2787,7 @@
                 <li>Tap the number of people going, then the Excel icon.</li>
                 <li>Share the file to Files (or Drive), then tap Import Spond file here.</li>
               </ol>
-              <p class="small muted" style="margin-top:8px">Only names and responses are read. Contact details in the file are ignored and never stored.</p>
+              <p class="small muted" style="margin-top:8px">Only names, responses and the group name are read. Contact details in the file are ignored and never stored.</p>
             </details>
             ${rosterBar("edit")}
           </div>`;
@@ -2302,7 +2809,7 @@
             .map((id) => {
               const p = S.players[id];
               const b = (r, l) => `<button class="${r}" aria-pressed="${p.resp === r}" data-a="resp" data-p="${id}" data-r="${r}" ${lock ? "disabled" : ""}>${l}</button>`;
-              return `<div class="sq-row"><span class="nm">${esc(p.name)}</span><span class="seg">${b("going", "Going")}${b("maybe", "Late")}${b("no", "Out")}</span>${lock ? "" : `<button class="x" data-a="removeSquad" data-p="${id}" aria-label="Remove ${esc(p.name)}">×</button>`}</div>`;
+              return `<div class="sq-row"><button class="nm" data-a="noteOpen" data-p="${id}" aria-label="Notes for ${esc(p.name)}">${esc(p.name)}${fbMark(p.name)}</button><span class="seg">${b("going", "Going")}${b("maybe", "Late")}${b("no", "Out")}</span>${lock ? "" : `<button class="x" data-a="removeSquad" data-p="${id}" aria-label="Remove ${esc(p.name)}">×</button>`}</div>`;
             })
             .join("");
         }
@@ -2388,6 +2895,33 @@
         } else h += rosterBar("locked");
         return h;
       }
+      function halfElapsed(t) {
+        return Math.max(0, clock(t) - (t.halfStart || 0));
+      }
+      function overTime(t) {
+        return Math.max(0, halfElapsed(t) - H());
+      }
+      function endName(t) {
+        return S.params.halves > 1 && t.half === 1 ? "Half-time" : "Full-time";
+      }
+      function autoEndText(e) {
+        const half = S.params.halves > 1 ? (e.half === 1 ? "1st half" : "2nd half") : "Full time";
+        return `${half} of game ${e.g + 1} ended after ${fmt(e.elapsed)} with no tap. It was ${fmt(e.over)} over.`;
+      }
+      function recentAuto(t) {
+        const log = t.log || [];
+        for (let i = log.length - 1; i >= 0; i--) {
+          if (log[i].type === "autoend" && log[i].g === t.g) return log[i];
+        }
+        return null;
+      }
+      function autoShown(t) {
+        const e = recentAuto(t);
+        if (!e) return null;
+        if (t.stage === "ht" && e.half === 1) return e;
+        if (t.stage === "ft" && e.half === t.half) return e;
+        return null;
+      }
       function dueText(t) {
         if (t.stage === "pre") return t.interval ? `First change ${fmt(t.interval * MIN)} after kick-off` : "Changes at breaks only";
         if (t.stage === "ht") return "Half-time";
@@ -2418,9 +2952,10 @@
             .join("")}</div>`;
         }
         h += rosterBar("share");
-        const c = clock(t);
-        const into = c - t.halfStart;
-        const ot = t.stage === "running" && into >= H();
+        const elapsed = halfElapsed(t);
+        const over = overTime(t);
+        const ot = t.stage === "running" && elapsed >= H();
+        const ended = autoShown(t);
         const half = P.halves > 1 ? (t.half === 1 ? ", 1st half" : ", 2nd half") : "";
         const gl = `Game ${Math.min(t.g + 1, P.games)} of ${P.games}`;
         const stage = {
@@ -2433,6 +2968,7 @@
         }[t.stage];
         let ctr = "";
         const endBtn = P.halves > 1 && t.half === 1 ? `<button class="btn ${ot ? "chalk" : "ghost"}" data-a="halftime">Half-time</button>` : `<button class="btn ${ot ? "chalk" : "ghost"}" data-a="fulltime">Full-time</button>`;
+        const whistle = endName(t);
         if (t.stage === "pre") {
           ctr = `<button class="btn chalk big" data-a="kickoff">Kick off</button>`;
           if (t.g > 0) ctr += `<button class="btn ghost" data-a="reopen">Game changes</button>`;
@@ -2449,11 +2985,15 @@
         }
         h += `<section class="board ${ot ? "alert" : ""}" aria-label="Match clock">
           <div class="stage">${stage}</div>
-          <div class="clock"><span data-live="clock:${t.id}">${fmt(c)}</span><small>of ${P.gameMins}:00</small></div>
+          <div class="clocks">
+            <div class="clock"><small>Elapsed</small><span data-live="elapsed:${t.id}">${fmt(elapsed)}</span><small class="of">of ${fmt(H())}</small></div>
+            <div class="clock ot ${over > 0 ? "on" : ""}"><small>Overtime</small><span data-live="over:${t.id}">${fmt(over)}</span><small class="of">${over > 0 ? "Running long" : "On time"}</small></div>
+          </div>
           <div class="due" data-live="due:${t.id}">${dueText(t)}</div>
           <div class="muted" style="color:rgba(255,255,255,.8)">${stratLabel(t.k, t.interval)}</div>
           <div class="row">${ctr}</div></section>`;
-        if (ot) h += `<div class="note bad">Time's up. Tap ${P.halves > 1 && t.half === 1 ? "Half-time" : "Full-time"} when the whistle goes.</div>`;
+        if (ended) h += `<div class="note bad">${esc(autoEndText(ended))}</div>`;
+        else if (ot) h += `<div class="note bad">Overtime <b data-live="overnote:${t.id}">${fmt(over)}</b>. Tap ${whistle} on the whistle.</div>`;
         const fill = fillPairs(t);
         if (["running", "paused", "pre", "ht"].includes(t.stage)) {
           if (fill.length) {
@@ -2485,7 +3025,7 @@
         const onN = new Set(plan.map((p) => p.on));
         if (plan.length) {
           h += `<h3>${planHead} <span class="n">${plan.length} swap${plan.length > 1 ? "s" : ""}</span></h3><div class="swaps">${plan
-            .map((p) => `<div class="swap">${chip(t, p.off, "off slim", "")}<span class="arr">${ARROW}</span>${chip(t, p.on, "next slim", "")}</div>`)
+            .map((p) => `<div class="swap">${chip(t, p.on, "next slim", "")}<span class="arr">${ARROW}</span>${chip(t, p.off, "off slim", "")}</div>`)
             .join("")}</div>`;
         }
         h += `<h3>On the pitch <span class="n">${L.F.length} of ${P.onField}</span></h3><div class="chips">${L.F.map((pid) =>
@@ -2500,7 +3040,7 @@
       function viewSummary() {
         const P = S.params;
         let h = `<img class="crest sm" src="${LOGO}" alt="Wimborne RFC crest"><h2>Summary</h2><p class="muted">${esc(S.eventName || "Match day")}${S.eventDate ? ", " + esc(S.eventDate) : ""}</p>`;
-        h += `<div class="row" style="margin:12px 0"><button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export CSV</button><button class="btn" data-a="exportJSON">Backup (JSON)</button></div>`;
+        h += `<div class="row" style="margin:12px 0"><button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export CSV</button><button class="btn" data-a="exportJSON">Backup (JSON)</button><button class="btn" data-a="modal" data-m="notes">Player notes</button></div>`;
         S.teams.forEach((tm) => {
           const t = S.T[tm.id];
           if (!t) return;
@@ -2531,13 +3071,14 @@
         const rows = pairs
           .map(
             (p) =>
-              `<button class="pair ${p.chk ? "" : "skip"}" data-a="togglePair" data-p="${p.on || p.off}" aria-pressed="${p.chk}"><span class="po">${p.off ? esc(nm(p.off)) : "<i>Empty spot</i>"}</span><span class="arr">${ARROW}</span><span class="pi">${p.on ? esc(nm(p.on)) : "<i>Leave the spot</i>"}</span></button>`,
+              `<button class="pair ${p.chk ? "" : "skip"}" data-a="togglePair" data-p="${p.on || p.off}" aria-pressed="${p.chk}"><span class="pi">${p.on ? esc(nm(p.on)) : "<i>Leave the spot</i>"}</span><span class="arr">${ARROW}</span><span class="po">${p.off ? esc(nm(p.off)) : "<i>Empty spot</i>"}</span></button>`,
           )
           .join("");
         const sub = [S.teams.length > 1 ? esc(tm.name) : "", t.callType === "plan" ? `Clock <span data-live="clock:${t.id}">${fmt(clock(t))}</span>` : ""].filter(Boolean).join(", ");
+        const ended = autoShown(t);
         return `<div class="call ${t.callType}" role="dialog" aria-modal="true" aria-label="${esc(title)}">
-          <div class="call-h"><div class="call-t">${title}</div>${sub ? `<div class="call-s">${sub}</div>` : ""}</div>
-          ${pairs.length ? `<div class="call-k"><span>Coming off</span><span></span><span>Going on</span></div>` : ""}
+          <div class="call-h"><div class="call-t">${title}</div>${ended ? `<div class="call-s">${esc(autoEndText(ended))}</div>` : ""}${sub ? `<div class="call-s">${sub}</div>` : ""}</div>
+          ${pairs.length ? `<div class="call-k"><span>Coming on</span><span></span><span>Coming off</span></div>` : ""}
           <div class="pairs">${rows || `<p class="muted" style="padding:16px 0">Everyone is on track. Nothing to change.</p>`}</div>
           <div class="call-f">${pairs.length ? '<p class="hint">Tap a pair to leave it out.</p>' : ""}
             <button class="btn big go" data-a="callDone">${n ? `Done: ${n} swapped` : "Carry on"}</button>
@@ -2580,6 +3121,7 @@
         if (others.length && ["pre", "ft", "done"].includes(t.stage)) {
           o += `<div class="grp">Move to</div>` + others.map((x) => b("moveTeam", esc(x.name), `data-to="${x.id}"`)).join("");
         }
+        o += feedbackBlock(pid, "sheet");
         return `<div class="scrim" data-a="closeSheet"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(nm(pid))}">
           <h2>${esc(nm(pid))}</h2><p class="muted">${esc(ST_LABEL[p.st])}. Played ${fmt(p.on)}, fair share ${fmt(p.ent)}.</p>
           <div class="opts">${o}<button class="btn" data-a="closeSheet">Close</button></div></div>`;
@@ -2595,6 +3137,7 @@
             ${S.started ? '<button class="btn" data-a="shareRoster">Share team list</button><button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export minutes (CSV)</button>' : ""}
             ${S.order.length ? '<button class="btn" data-a="exportRoster">Export squad file</button>' : ""}
             <label class="btn file">Import squad file<input type="file" accept=".json,application/json" data-ch="rosterFile"></label>
+            <button class="btn" data-a="modal" data-m="notes">Player notes</button>
             <button class="btn" data-a="exportJSON">Back up this session (JSON)</button>
             <label class="btn file">Restore a backup<input type="file" accept=".json,application/json" data-ch="restoreFile"></label>
             <button class="btn" data-a="sound">Sound alerts: ${S.sound ? "on" : "off"}</button>
@@ -2602,7 +3145,7 @@
             <button class="btn warn" data-a="modal" data-m="new">Start a new session</button>
             <button class="btn" data-a="closeModal">Close</button></div>`;
         } else if (m === "new") {
-          inner = `<h2>Start a new session?</h2><div class="note bad">This clears the squad, teams and every minute recorded on this device. It can't be undone.</div><div class="opts"><button class="btn" data-a="exportJSON">Back up first (JSON)</button><button class="btn warn" data-a="newConfirm">Clear and start new</button><button class="btn" data-a="closeModal">Keep this session</button></div>`;
+          inner = `<h2>Start a new session?</h2><div class="note bad">This clears the squad, teams and every minute on this device. Player notes are kept. It can't be undone.</div><div class="opts"><button class="btn" data-a="exportJSON">Back up first (JSON)</button><button class="btn warn" data-a="newConfirm">Clear and start new</button><button class="btn" data-a="closeModal">Keep this session</button></div>`;
         } else if (m === "add") {
           inner = `<h2>Add a player</h2><p class="muted">They go on the bench with a fair share counted from now.</p><div class="add"><input id="addLate" placeholder="Name" autocomplete="off"></div><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="addLate">Add to ${esc(S.teams[S.active].name)}</button></div>`;
         } else if (m === "strat") {
@@ -2614,6 +3157,17 @@
             <div class="stp"><span>Minutes between changes (0 = breaks only)</span><div class="ctl"><button class="sq" data-a="stratStep" data-f="iv" data-s="-1">−</button><b>${s.iv % 1 ? fmt(s.iv * MIN) : s.iv}</b><button class="sq" data-a="stratStep" data-f="iv" data-s="1">+</button></div></div>
             ${stratTable(n, s.k, s.iv, "stratPick")}
             <div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="stratApply">Use ${stratLabel(s.k, s.iv).toLowerCase()}</button></div>`;
+        } else if (m === "coach") {
+          inner = `<h2>Your name</h2><p class="muted">Each note is marked with your name. When another coach notes the same thing, it shows as reaffirmed.</p><div class="add"><input id="coachName" maxlength="40" placeholder="Coach name" value="${esc(FB.coach)}" autocomplete="name"></div><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="coachSave">Save</button></div>`;
+        } else if (m === "note") {
+          const pid = UI.notePid;
+          if (!pid || !S.players[pid]) {
+            inner = `<h2>Player notes</h2><p class="muted">That player is not on this squad.</p><button class="btn" data-a="closeModal">Close</button>`;
+          } else {
+            inner = `<h2>${esc(nm(pid))}</h2><p class="muted">${esc([S.eventName, S.groupName].filter(Boolean).join(", ") || "Notes stay on this phone when you start a new session.")}</p>${feedbackBlock(pid, "note")}<div class="row" style="margin-top:12px"><button class="btn" data-a="closeModal">Close</button></div>`;
+          }
+        } else if (m === "notes") {
+          inner = `<h2>Player notes</h2><p class="muted">${FB.coach ? `Marked as ${esc(FB.coach)}.` : "Set your name before you add a note."} These stay on this phone when you start a new session. Share the file to combine notes from other coaches.</p><div class="row"><button class="btn" data-a="shareFeedback">Share notes file</button><label class="btn file">Import notes file<input type="file" accept=".json,application/json" data-ch="feedbackFile"></label></div><div class="row" style="margin-top:8px"><button class="btn" data-a="coachOpen">Coach name</button></div>${allNotesHtml()}<div class="row" style="margin-top:12px"><button class="btn" data-a="closeModal">Close</button></div>`;
         }
         return `<div class="scrim" data-a="closeModal"></div><div class="sheet" role="dialog" aria-modal="true">${inner}</div>`;
       }
@@ -2638,11 +3192,12 @@
               const due = nextDue(t);
               const c = clock(t);
               const ot = t.stage === "running" && c - t.halfStart >= H();
+              const overOn = overTime(t) > 0 ? 1 : 0;
               const cp = t.callType ? callPairs(t).map((p) => (p.chk ? 1 : 0)).join("") : "";
               const pl = ["running", "paused"].includes(t.stage)
                 ? planPairs(t, t.k).map((p) => (p.ben ? 1 : 0)).join("") + breakPairs(t).map((p) => p.on + p.off).join()
                 : "";
-              return [t.stage, t.callType, (t.toggle || []).join(), L.F.join(), L.B.join(), L.O.map((i) => i + t.ps[i].st).join(), ot, due != null && due <= c, cp, pl, t.k, t.interval, t.undo.length].join("/");
+              return [t.stage, t.callType, (t.toggle || []).join(), L.F.join(), L.B.join(), L.O.map((i) => i + t.ps[i].st).join(), ot, overOn, due != null && due <= c, cp, pl, t.k, t.interval, t.undo.length].join("/");
             })
             .join("|") +
           S.active +
@@ -2657,6 +3212,8 @@
           if (!t) return;
           let v = "";
           if (k === "clock") v = fmt(clock(t));
+          else if (k === "elapsed") v = fmt(halfElapsed(t));
+          else if (k === "over" || k === "overnote") v = fmt(overTime(t));
           else if (k === "due") v = dueText(t);
           else if (k === "pm") v = fmt(t.ps[pid] ? t.ps[pid].on : 0);
           else if (k === "df") v = t.ps[pid] ? fmtS(t.ps[pid].on - t.ps[pid].ent) : "";
@@ -2674,10 +3231,39 @@
         lastSig = S.view === "game" && S.started ? gameSig() : "";
       }
 
+      function autoEndHalf(t, i) {
+        const overNow = clock(t) - t.halfStart - H();
+        t.otStopAt = clock(t);
+        t.ot = true;
+        t.otPing = Math.max(0, Math.floor(overNow / 30000));
+        pushUndo(t);
+        settle(t);
+        const elapsed = clock(t) - t.halfStart;
+        const over = elapsed - H();
+        logEv(t, "autoend", { half: t.half, elapsed, over, reason: "no interaction" });
+        t.acc = clock(t);
+        t.res = null;
+        t.ot = false;
+        t.otPing = 0;
+        if (S.params.halves > 1 && t.half === 1) {
+          t.stage = "ht";
+          t.callType = "break";
+          t.toggle = [];
+        } else {
+          t.stage = "ft";
+          t.callType = null;
+          t.games[t.g] = { dur: t.acc, auto: true };
+        }
+        if (i != null) S.active = i;
+        alarm(true);
+        toast(autoEndText(t.log[t.log.length - 1]));
+      }
+
       /* ---------- Clock tick ---------- */
       let lastSave = 0;
       function tick() {
         if (!S.started) return;
+        let otPing = null;
         S.teams.forEach((tm, i) => {
           const t = S.T[tm.id];
           if (!t || t.stage !== "running") return;
@@ -2691,14 +3277,40 @@
             if (!S.T[S.teams[S.active].id].callType) S.active = i;
             alarm(false);
           }
-          if (c - t.halfStart >= H() && !t.ot) {
-            t.ot = true;
-            alarm(true);
+          const over = c - t.halfStart - H();
+          if (over >= 0) {
+            if (over >= H() * 0.25 && !t.otStopAt) {
+              autoEndHalf(t, i);
+              otPing = { id: t.id, end: true };
+            } else {
+              const ping = Math.floor(over / 30000);
+              const fresh = !t.ot;
+              if (fresh || ping > (t.otPing || 0)) {
+                t.ot = true;
+                t.otPing = ping;
+                alarm(true);
+                if (fresh && S.view === "game") {
+                  const curT = S.T[S.teams[S.active].id];
+                  if (curT && !curT.callType && clock(curT) - curT.halfStart < H()) S.active = i;
+                }
+                otPing = { id: t.id, over, ping, name: endName(t) };
+              }
+            }
           }
         });
         if (S.view === "game") {
           if (gameSig() !== lastSig) render();
           else liveUpdate();
+        }
+        if (otPing && !otPing.end) {
+          const board = document.querySelector(".board");
+          const active = S.teams[S.active] && S.T[S.teams[S.active].id];
+          if (board && active && active.id === otPing.id) {
+            board.classList.remove("otping");
+            void board.offsetWidth;
+            board.classList.add("otping");
+          }
+          toast(otPing.ping ? `Overtime ${fmt(otPing.over)}. Tap ${otPing.name} on the whistle.` : `Time's up. Tap ${otPing.name} on the whistle.`);
         }
         if (Date.now() - lastSave > 3000) {
           save();
@@ -2905,7 +3517,10 @@
           UI.modal = d.m;
         },
         closeModal: () => {
-          UI.modal = null;
+          const back = UI.modal === "coach" && !UI.pending && UI.coachBack === "notes";
+          UI.pending = null;
+          UI.coachBack = "";
+          UI.modal = back ? "notes" : null;
         },
         squadFilter: (d) => {
           const F = UI.squadFilter;
@@ -3040,6 +3655,8 @@
           t.pi = 0;
           t.snooze = 0;
           t.ot = false;
+          t.otPing = 0;
+          t.otStopAt = 0;
           wake();
         },
         pause: () => {
@@ -3076,6 +3693,8 @@
           t.pi = 0;
           t.snooze = 0;
           t.ot = false;
+          t.otPing = 0;
+          t.otStopAt = 0;
           t.res = Date.now();
           wake();
         },
@@ -3098,6 +3717,8 @@
           t.half = 1;
           t.halfStart = 0;
           t.ot = false;
+          t.otPing = 0;
+          t.otStopAt = 0;
           if (t.g + 1 >= S.params.games) {
             t.stage = "done";
             S.view = S.teams.every((x) => S.T[x.id].stage === "done") ? "summary" : "game";
@@ -3164,6 +3785,71 @@
         },
         player: (d) => {
           UI.sheet = { t: d.t, p: d.p };
+        },
+        noteOpen: (d) => {
+          UI.notePid = d.p;
+          UI.coachBack = "";
+          if (!FB.coach) {
+            UI.pending = { pid: d.p, src: "note" };
+            UI.modal = "coach";
+          } else UI.modal = "note";
+        },
+        coachOpen: () => {
+          UI.coachBack = UI.modal === "notes" ? "notes" : "";
+          UI.pending = null;
+          UI.modal = "coach";
+        },
+        coachSave: () => {
+          const name = ($("#coachName").value || "").trim().replace(/\s+/g, " ").slice(0, 40);
+          if (!name) {
+            toast("Add your name");
+            return;
+          }
+          FB.coach = name;
+          if (!saveFB()) return;
+          const p = UI.pending;
+          const back = UI.coachBack;
+          UI.pending = null;
+          UI.coachBack = "";
+          if (p && p.tag) addFb(p.pid, p.tag, p.line || "", p.side || 0);
+          if (p && p.src === "sheet") UI.modal = null;
+          else if (p && p.pid) {
+            UI.notePid = p.pid;
+            UI.modal = "note";
+          } else UI.modal = back === "notes" ? "notes" : null;
+        },
+        fbTag: (d) => {
+          const action = fbAction(d.tag);
+          const side = action ? (Number(d.side) < 0 ? -1 : 1) : 0;
+          const line = action ? fbOutcome(d.tag, side) : ($("#fbTreds") && $("#fbTreds").value) || "";
+          if (!FB.coach) {
+            UI.pending = { pid: d.p, tag: d.tag, line, side, src: d.src || "" };
+            UI.coachBack = "";
+            UI.modal = "coach";
+            return;
+          }
+          addFb(d.p, d.tag, line, side);
+        },
+        fbDrop: (d) => {
+          const rec = FB.records.find((r) => r.id === d.id);
+          if (!rec || rec.coach !== FB.coach) return;
+          const prev = FB.records;
+          FB.records = FB.records.filter((r) => r.id !== d.id);
+          if (!saveFB()) FB.records = prev;
+        },
+        shareFeedback: async () => {
+          const text = JSON.stringify(feedbackFile(), null, 2);
+          const filename = `fair-time-notes-${stamp()}.json`;
+          const file = new File([text], filename, { type: "application/json" });
+          try {
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: "Player notes" });
+              return;
+            }
+          } catch (e) {
+            if (e && e.name === "AbortError") return;
+          }
+          saveFile(filename, text);
         },
         closeSheet: () => {
           UI.sheet = null;
@@ -3433,6 +4119,21 @@
           S.teams[+el.dataset.i].name = el.value.trim() || "Team";
           save();
         },
+        feedbackFile: async (el) => {
+          const f = el.files && el.files[0];
+          el.value = "";
+          if (!f) return;
+          try {
+            const data = JSON.parse(await f.text());
+            const r = mergeFeedback(data);
+            UI.modal = "notes";
+            toast(fbImportToast(r));
+          } catch (e) {
+            toast(e.message || "Couldn't read that file.");
+          }
+          save();
+          render();
+        },
       };
       document.addEventListener("click", (e) => {
         unlockAudio();
@@ -3453,6 +4154,7 @@
       document.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && e.target.id === "addName") A.addSquad(), save(), render();
         if (e.key === "Enter" && e.target.id === "addLate") A.addLate(), save(), render();
+        if (e.key === "Enter" && e.target.id === "coachName") A.coachSave(), save(), render();
         if (e.key === "Escape" && (UI.sheet || UI.modal)) {
           UI.sheet = null;
           UI.modal = null;
