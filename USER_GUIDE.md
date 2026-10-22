@@ -138,10 +138,11 @@ With two teams on one phone, use the tabs at the top. A red dot on a tab means t
    - Want to keep a pair on? Tap that pair to leave it out.
    - Not the right moment at all? Tap **Skip this change**.
 4. Stoppage before the change is due? Tap **Sub now** to do it early.
-5. When time is up, the clock turns red but keeps running. Tap **Half-time** or **Full-time** when the referee blows.
-6. At half-time and between games, Fair Time suggests a bigger reshuffle to even things out. Check it, then tap **Done**.
+5. The clock shows **Elapsed** on the left and **Overtime** on the right. Overtime is how far this half has run past its length, from stoppages and delays. The board turns red, and the phone beeps every 30 seconds.
+6. Tap **Half-time** or **Full-time** when the referee blows. If a half runs 25% over its length with no tap, Fair Time ends it and records that nobody tapped.
+7. At half-time and between games, Fair Time suggests a bigger reshuffle to even things out. Check it, then tap **Done**.
 
-**Pause** stops the clock for long stoppages. **Undo** reverses your last action if you tap the wrong thing.
+**Pause** stops the clock for a long stoppage, so that time is not added to overtime. **Undo** reverses your last action if you tap the wrong thing. Undoing an automatic end leaves the half running, so you can tap **Half-time** or **Full-time** yourself.
 
 The screen stays on while a game is running. Keep the sound on: iPhones don't vibrate for web apps.
 
@@ -162,7 +163,7 @@ Tap any player's card for options.
 | Manual swap | Pick a name under **Swap off for** or **Bring on for** | Swaps just those two. |
 | Move between teams | **Move to** (before kick-off or at full-time) | Moves them with their minutes. |
 | Not on the list at all | **Add player** at the bottom | Adds them to the bench. |
-| Something to work on | A topic under **Notes**, such as **Tackle height** | Saves a development opportunity for that player and this event. |
+| Something to work on | The green or red side of a split under **Notes**, such as **Low contact** | Counts a good execution, or an error, for that player and this event. |
 
 To change the plan mid-game, for example in heavy rain or with more players than expected, tap **Sub plan**.
 
@@ -197,13 +198,33 @@ Buttons at the top of the Summary:
 
 ## 6. Player notes
 
-Tap a player's name on the Squad screen, or open their card on the Match screen. Under **Notes**, the topics are development opportunities: tackle height, handling, passing, contact, decision or effort. Text in the Notes box is saved with the topic you tap, for example "stood tall in the tackle". Under **TREDS**, tap a positive behaviour: teamwork, respect, enjoyment, discipline or sportsmanship. The TREDS box is a separate detail, for example "helped a teammate up".
+Tap a player's name on the Squad screen, or open their card on the Match screen. Under **Notes**, each skill is a split. Tap the green side when it is done well, or the red side for the error. Each tap counts for this event, so you can see the balance on the row, for example **+2 -1**.
+
+**Defence** is the collision and the line.
+
+- **Tackle height**: **Low contact** below the sternum, or **Upright / high**.
+- **Tracking**: **Hips boxed**, feet square and the angle cut off, or **Ankles broken**.
+- **Line speed**: **Squeeze**, the line up together, or **Dog leg**, one player shot out or left behind.
+
+**Attack** is shape and moving the ball.
+
+- **Fix & pass**: **Committed**, the defender was drawn first, or **Shovelled**, the pass went early.
+- **Ball catch**: **Hands early**, or **Body catch**.
+- **Support line**: **Deception**, a real running line, or **Flat / static**.
+
+**Contest** is the breakdown and the set piece.
+
+- **Ruck arrival**: **Clean over**, or **Flopped**.
+- **Body shape**: **Tower**, a flat back, or **Hinged** from the waist.
+- **Ball presentation**: **Long placement** away from the contest, or **Sloppy release**.
+
+Under **TREDS**, tap a positive behaviour: teamwork, respect, enjoyment, discipline or sportsmanship. The TREDS box is separate, for example "helped a teammate up".
 
 Tap **Set coach name** on the Squad screen. Every note is marked with that name, so the same point from two coaches shows as reaffirmed. If the name is not set yet, the first note asks for it.
 
 Notes stay on this phone when you start a new session or import next week's Spond file. The same spelling of a name, in the same Spond group, keeps the same notes. Two age groups on one phone stay separate because the group name from the file is part of the match.
 
-On the squad list, a topic with a number means that many coaches noted it. **Tackle height · 2** has been seen by two coaches.
+On the squad list, a result with a number means that many taps, or that many coaches when more than one coach saw it. **Low contact · 2** has been tapped twice, or seen by two coaches.
 
 ### Sharing notes between coaches
 

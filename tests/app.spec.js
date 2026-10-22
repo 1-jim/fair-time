@@ -116,6 +116,45 @@ test("runs a game: planned change, injury cover, summary", async ({ page }) => {
   await expect(page.locator(".lines").first()).toContainText("didn't return");
 });
 
+test("overtime shows on the clock and a forgotten half ends itself", async ({ page }) => {
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  await tap(page, "[data-a=startDay]");
+  await tap(page, "[data-a=kickoff]");
+  await expect(page.locator(".clocks .clock").first()).toContainText("Elapsed");
+  await expect(page.locator(".clocks .clock.ot")).toContainText("Overtime");
+  await expect(page.locator("[data-live^=elapsed]")).toHaveText("0:00");
+  await expect(page.locator("[data-live^=over]").first()).toHaveText("0:00");
+
+  const half = await page.evaluate(() => H());
+  const into = await page.evaluate(() => {
+    const t = S.T[S.teams[S.active].id];
+    return clock(t) - t.halfStart;
+  });
+  await page.clock.runFor(half - into + 30 * 1000);
+  await expect(page.locator(".board")).toHaveClass(/alert/);
+  expect(await page.locator("[data-live^=over]").first().textContent()).toMatch(/^0:3/);
+
+  await page.clock.runFor(30 * 1000);
+  await expect(page.locator("#toast")).toContainText("Overtime");
+  expect(await page.evaluate(() => S.T[S.teams[S.active].id].otPing)).toBeGreaterThan(0);
+
+  const left = await page.evaluate(() => {
+    const t = S.T[S.teams[S.active].id];
+    return H() * 0.25 - (clock(t) - t.halfStart - H());
+  });
+  await page.clock.runFor(left + 400);
+  await expect(page.getByRole("dialog", { name: "Half-time changes" })).toContainText("with no tap");
+  const log = await page.evaluate(() => S.T[S.teams[S.active].id].log.filter((e) => e.type === "autoend"));
+  expect(log).toHaveLength(1);
+  expect(log[0].reason).toBe("no interaction");
+  expect(log[0].elapsed).toBeGreaterThan(log[0].over);
+
+  await tap(page, "[data-a=undo]");
+  await page.clock.runFor(1000);
+  expect(await page.evaluate(() => S.T[S.teams[S.active].id].stage)).toBe("running");
+});
+
 test("concussion cannot be cleared by the normal return option", async ({ page }) => {
   await importSquad(page);
   await tap(page, "[data-a=toSetup]");
@@ -282,23 +321,41 @@ test.describe("team builder", () => {
 
 test("player notes stay after a new session and combine across coaches", async ({ page }) => {
     await page.evaluate(() => {
-      FB.coach = "Alex";
-      FB.records = [
-        {
-          id: "paste0001",
-          player: playerHash("", "Alfie Sample"),
-          name: "Alfie Sample",
-          group: "",
-          event: "",
-          date: "",
-          tag: "Handling",
-          line: "before the file",
-          coach: "Alex",
-          at: 1,
-        },
-      ];
-      saveFB();
+      localStorage.setItem("wimborne-fairtime-feedback-v1", JSON.stringify({
+        v: 1,
+        coach: "Alex",
+        records: [
+          {
+            id: "oldtag01",
+            player: playerHash("", "Alfie Sample"),
+            name: "Alfie Sample",
+            group: "",
+            event: "",
+            date: "",
+            tag: "Handling",
+            line: "old topic",
+            coach: "Alex",
+            at: 1,
+          },
+          {
+            id: "paste0001",
+            player: playerHash("", "Alfie Sample"),
+            name: "Alfie Sample",
+            group: "",
+            event: "",
+            date: "",
+            tag: "Ball catch",
+            line: "Hands early",
+            side: 1,
+            coach: "Alex",
+            at: 1,
+          },
+        ],
+      }));
+      FB = loadFB();
     });
+    expect(await page.evaluate(() => FB.records.map((r) => r.tag))).toEqual(["Ball catch"]);
+    expect(await page.evaluate(() => localStorage.getItem("wimborne-fairtime-feedback-v1"))).not.toContain("Handling");
     await importSquad(page);
     expect(await page.evaluate(() => S.groupName)).toBe("Sample Rugby Club");
     const linked = await page.evaluate(() => FB.records.find((r) => r.id === "paste0001"));
@@ -306,17 +363,12 @@ test("player notes stay after a new session and combine across coaches", async (
     expect(linked.player).toBe(await page.evaluate(() => playerHash("Sample Rugby Club", "Alfie Sample")));
 
     await tap(page, '.sq-row:has-text("Alfie Sample") .nm');
-    await expect(page.getByText("before the file")).toBeVisible();
-    await page.locator("#fbLine").evaluate((el) => {
-      el.value = "Stood tall";
-    });
-    await tap(page, '[data-tag="Tackle height"]');
-    await expect(page.locator("#toast")).toContainText("Tackle height saved");
-    await page.locator("#fbLine").evaluate((el) => {
-      el.value = "Stood tall";
-    });
-    await tap(page, '[data-tag="Tackle height"]');
-    await expect(page.locator("#toast")).toContainText("already noted");
+    await expect(page.getByText("Hands early · Alex")).toBeVisible();
+    await tap(page, '[data-tag="Fix & pass"][data-side="1"]');
+    await expect(page.locator("#toast")).toContainText("Committed saved");
+    await tap(page, '[data-tag="Fix & pass"][data-side="1"]');
+    await expect(page.locator("#toast")).toContainText("Committed saved");
+    await expect(page.locator(".splittally")).toHaveText("+2");
 
     const stored = await page.evaluate(() => ({
       session: localStorage.getItem("wimborne-fairtime-v1"),
@@ -324,18 +376,18 @@ test("player notes stay after a new session and combine across coaches", async (
       summary: summaryText(),
     }));
     expect(stored.session).not.toContain("example.com");
-    expect(stored.session).not.toContain("Tackle height");
-    expect(stored.notes).toContain("Tackle height");
-    expect(stored.notes).toContain("Stood tall");
+    expect(stored.session).not.toContain("Fix & pass");
+    expect(stored.notes).toContain("Fix & pass");
+    expect(stored.notes).toContain("Committed");
     expect(stored.notes).not.toContain("example.com");
-    expect(stored.summary).not.toContain("Tackle height");
+    expect(stored.summary).not.toContain("Fix & pass");
 
     await tap(page, "[data-a=closeModal]");
     await tap(page, "[data-a=modal][data-m=menu]");
     await tap(page, "[data-a=modal][data-m=new]");
     await tap(page, "[data-a=newConfirm]");
     expect(await page.evaluate(() => Object.keys(S.players).length)).toBe(0);
-    expect(await page.evaluate(() => FB.records.some((r) => r.line === "Stood tall"))).toBe(true);
+    expect(await page.evaluate(() => FB.records.some((r) => r.line === "Committed" && r.side === 1))).toBe(true);
 
     await importSquad(page);
     await expect(page.locator('.sq-row:has-text("Alfie Sample") .fbmark')).toHaveText("2 notes");
@@ -351,8 +403,9 @@ test("player notes stay after a new session and combine across coaches", async (
           group: S.groupName,
           event: S.eventName,
           date: S.eventDate,
-          tag: "Tackle height",
-          line: "From the side",
+          tag: "Fix & pass",
+          line: "Committed",
+          side: 1,
           coach: "Sam",
           at: 2,
         },
@@ -367,7 +420,7 @@ test("player notes stay after a new session and combine across coaches", async (
     await expect(page.getByText("Reaffirmed by 2 coaches")).toBeVisible();
     await page.setInputFiles("input[data-ch=feedbackFile]", file);
     await expect(page.locator("#toast")).toContainText("already on this phone");
-    expect(await page.evaluate(() => FB.records.filter((r) => r.name === "Alfie Sample" && r.tag === "Tackle height").length)).toBe(2);
+    expect(await page.evaluate(() => FB.records.filter((r) => r.name === "Alfie Sample" && r.tag === "Fix & pass").length)).toBe(3);
   });
 
   test("a match card can record a player note", async ({ page }) => {
@@ -379,32 +432,37 @@ test("player notes stay after a new session and combine across coaches", async (
     await tap(page, "[data-a=toSetup]");
     await tap(page, "[data-a=startDay]");
     await tap(page, ".chips .chip.field, .chips .chip.off");
-    await expect(page.getByText("Development opportunities.")).toBeVisible();
-    await page.locator("#fbNote").evaluate((el) => {
-      el.value = "Stood tall";
-    });
+    await expect(page.getByText("The collision and the line.")).toBeVisible();
+    await expect(page.getByText("Shape and moving the ball.")).toBeVisible();
+    await expect(page.getByText("The breakdown and the set piece.")).toBeVisible();
+    await expect(page.locator('[data-tag="Fix & pass"][data-side="1"]')).toHaveText("Committed");
+    await expect(page.locator('[data-tag="Fix & pass"][data-side="-1"]')).toHaveText("Shovelled");
+    await expect(page.locator('[data-tag="Tackle height"][data-side="1"]')).toHaveText("Low contact");
+    await expect(page.locator('[data-tag="Ruck arrival"][data-side="1"]')).toHaveText("Clean over");
     await page.locator("#fbTreds").evaluate((el) => {
       el.value = "Helped a teammate up";
     });
-    await tap(page, '[data-tag="Handling"]');
-    await expect(page.locator("#toast")).toContainText("Handling saved");
+    await tap(page, '[data-tag="Fix & pass"][data-side="1"]');
+    await expect(page.locator("#toast")).toContainText("Committed saved");
     await expect(page.getByText("Noted by Alex")).toBeVisible();
+    await expect(page.locator(".splittally").first()).toHaveText("+1");
+    await tap(page, '[data-tag="Fix & pass"][data-side="-1"]');
+    await expect(page.locator("#toast")).toContainText("Shovelled saved");
     await expect(page.getByText("A positive behaviour.")).toBeVisible();
-    await page.locator("#fbNote").evaluate((el) => {
-      el.value = "Should stay on the note";
-    });
     await page.locator("#fbTreds").evaluate((el) => {
       el.value = "Helped a teammate up";
     });
     await tap(page, '[data-tag="Teamwork"]');
     await expect(page.locator("#toast")).toContainText("Teamwork saved");
     const lines = await page.evaluate(() =>
-      FB.records.filter((r) => r.coach === "Alex").map((r) => r.tag + ":" + r.line),
+      FB.records.filter((r) => r.coach === "Alex").map((r) => r.tag + ":" + r.side + ":" + r.line),
     );
-    expect(lines).toContain("Handling:Stood tall");
-    expect(lines).toContain("Teamwork:Helped a teammate up");
-    expect(lines).not.toContain("Teamwork:Should stay on the note");
-    expect(await page.evaluate(() => summaryText())).not.toContain("Handling");
+    expect(lines).toContain("Fix & pass:1:Committed");
+    expect(lines).toContain("Fix & pass:-1:Shovelled");
+    expect(lines).not.toContain("Fix & pass:1:Helped a teammate up");
+    expect(lines).toContain("Teamwork:0:Helped a teammate up");
+    expect(lines).not.toContain("Teamwork:0:Committed");
+    expect(await page.evaluate(() => summaryText())).not.toContain("Fix & pass");
     expect(await page.evaluate(() => summaryText())).not.toContain("Teamwork");
   });
 
