@@ -19,8 +19,9 @@ When someone doesn't turn up, gets injured or arrives late, you tap their name a
 3. [On the touchline](#3-on-the-touchline)
 4. [When things change](#4-when-things-change)
 5. [After the games](#5-after-the-games)
-6. [Good to know](#6-good-to-know)
-7. [Feedback](#feedback)
+6. [Player notes](#6-player-notes)
+7. [Good to know](#7-good-to-know)
+8. [Feedback](#feedback)
 
 ---
 
@@ -45,7 +46,7 @@ Open it once with signal so it's saved on your phone. After that it works with n
    - **Android:** choose **Fair Time** from the share menu. The squad loads straight in.
    - **iPhone:** save the file to Files. Open Fair Time and tap **Import Spond file**.
 
-Fair Time reads only names and responses. Contact details, addresses and dates of birth in the Spond file are ignored and never stored.
+Fair Time reads names, responses and the group name. Contact details, addresses and dates of birth in the Spond file are ignored and never stored. The group name is how player notes stay with the same child each week.
 
 No Spond file? Tap **Paste names** and paste a list, one name per line.
 
@@ -124,14 +125,14 @@ The clock is at the top, with a countdown to the next change. Below it, every pl
 | 🟦 Blue | On the bench |
 | ⬜ Grey | Not available (injured, gone home, not arrived) |
 
-Each card shows the minutes played so far. It also shows how far that player is ahead (+) or behind (-) their fair share. The **Next change** list always shows exactly who swaps next.
+Each card shows the minutes played so far. It also shows how far that player is ahead (+) or behind (-) their fair share. The **Next change** list reads left to right: the player coming on, then the player they are coming on for.
 
 With two teams on one phone, use the tabs at the top. A red dot on a tab means that team has a change due.
 
 ### Running a game
 
 1. Tap **Kick off**.
-2. When a change is due, the phone beeps and a full-screen alert shows the pairs: **coming off** on the left, **going on** on the right.
+2. When a change is due, the phone beeps and a full-screen alert shows the pairs. The player **coming on** is on the left. The player they are coming on for is on the right.
 3. Make the swaps, then tap **Done**.
    - Ball not dead yet? Tap **Wait 30 sec**.
    - Want to keep a pair on? Tap that pair to leave it out.
@@ -161,6 +162,7 @@ Tap any player's card for options.
 | Manual swap | Pick a name under **Swap off for** or **Bring on for** | Swaps just those two. |
 | Move between teams | **Move to** (before kick-off or at full-time) | Moves them with their minutes. |
 | Not on the list at all | **Add player** at the bottom | Adds them to the bench. |
+| Something to work on | A topic under **Notes**, such as **Tackle height** | Saves a development opportunity for that player and this event. |
 
 To change the plan mid-game, for example in heavy rain or with more players than expected, tap **Sub plan**.
 
@@ -189,11 +191,33 @@ Buttons at the top of the Summary:
 
 ### Starting next week
 
-**Menu > Start a new session** clears everything on the phone. It warns you first and offers a backup, so export anything you want to keep.
+**Menu > Start a new session** clears the squad, the teams and the minutes. It warns you first and offers a backup. Player notes are kept.
 
 ---
 
-## 6. Good to know
+## 6. Player notes
+
+Tap a player's name on the Squad screen, or open their card on the Match screen. Under **Notes**, the topics are development opportunities: tackle height, handling, passing, contact, decision or effort. Text in the Notes box is saved with the topic you tap, for example "stood tall in the tackle". Under **TREDS**, tap a positive behaviour: teamwork, respect, enjoyment, discipline or sportsmanship. The TREDS box is a separate detail, for example "helped a teammate up".
+
+Tap **Set coach name** on the Squad screen. Every note is marked with that name, so the same point from two coaches shows as reaffirmed. If the name is not set yet, the first note asks for it.
+
+Notes stay on this phone when you start a new session or import next week's Spond file. The same spelling of a name, in the same Spond group, keeps the same notes. Two age groups on one phone stay separate because the group name from the file is part of the match.
+
+On the squad list, a topic with a number means that many coaches noted it. **Tackle height · 2** has been seen by two coaches.
+
+### Sharing notes between coaches
+
+**Menu > Player notes > Share notes file** sends a file, which you can pass on in WhatsApp. Another coach taps **Import notes file** on their phone. Importing the same file again does not add a second copy.
+
+When two coaches note the same topic for the same player, it shows as reaffirmed, with both names. The same coach seeing it again at a later session stays as one coach, and both sessions are listed.
+
+The match summary and the minutes file do not include these notes. Share the notes file with the coaches who should read them.
+
+You can remove a note you wrote. Another coach's note stays until they remove it on their own phone.
+
+---
+
+## 7. Good to know
 
 - **One phone per team** works best if coaches are on different pitches. Each phone keeps its own data; there's no syncing between phones yet.
 - **Everything stays on your phone.** Nothing is sent to a server, and no player data is stored online.
