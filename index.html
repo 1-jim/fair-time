@@ -2734,7 +2734,7 @@
           ["summary", "Summary"],
         ];
         const dis = (v) =>
-          (v === "setup" && !S.order.length) || ((v === "game" || v === "summary") && !S.started);
+          (v === "setup" && !S.order.length) || (v === "game" && !S.started) || (v === "summary" && !S.order.length);
         return `<div class="in"><div class="brand"><img src="${LOGO}" alt="Wimborne RFC"><span>Fair Time</span></div>
           <button class="ib" data-a="modal" data-m="menu" aria-label="Menu">⋯</button></div>
           <nav class="tabs">${tabs
@@ -3037,7 +3037,72 @@
         h += `<div class="bar"><div class="row"><button class="btn" data-a="undo" ${t.undo.length ? "" : "disabled"}>Undo</button><button class="btn" data-a="stratOpen">Sub plan</button><button class="btn" data-a="modal" data-m="add">Add player</button></div></div>`;
         return h;
       }
+      function tallyBits(c) {
+        const bits = [];
+        if (c.pos) bits.push("+" + c.pos);
+        if (c.neg) bits.push("-" + c.neg);
+        return bits.join(" ");
+      }
+      function skillFeedback() {
+        const event = String(S.eventName || "");
+        const date = String(S.eventDate || "");
+        const squad = {};
+        FB_SKILL.forEach((tag) => (squad[tag] = { pos: 0, neg: 0 }));
+        const players = [];
+        S.order.forEach((id) => {
+          if (!S.players[id]) return;
+          const recs = fbFor(nm(id), S.groupName || "").filter((r) => r.event === event && r.date === date);
+          if (!recs.length) return;
+          const skills = {};
+          FB_SKILL.forEach((tag) => (skills[tag] = { pos: 0, neg: 0 }));
+          const treds = [];
+          recs.forEach((r) => {
+            if (fbAction(r.tag)) {
+              if (r.side < 0) {
+                skills[r.tag].neg++;
+                squad[r.tag].neg++;
+              } else if (r.side > 0) {
+                skills[r.tag].pos++;
+                squad[r.tag].pos++;
+              }
+            } else if (FB_TREDS.includes(r.tag) && !treds.includes(r.tag)) treds.push(r.tag);
+          });
+          const lines = FB_SKILL.filter((tag) => skills[tag].pos || skills[tag].neg).map((tag) => ({ tag, label: tallyBits(skills[tag]) }));
+          if (lines.length || treds.length) players.push({ name: nm(id), lines, treds });
+        });
+        const squadLines = FB_SKILL.filter((tag) => squad[tag].pos || squad[tag].neg).map((tag) => ({ tag, label: tallyBits(squad[tag]) }));
+        return { squadLines, players };
+      }
+      function skillFeedbackText() {
+        const fb = skillFeedback();
+        const out = [S.eventName || "Skill zone", S.eventDate, S.groupName].filter(Boolean);
+        out.push("", "Squad");
+        fb.squadLines.forEach((l) => out.push("- " + l.tag + ": " + l.label));
+        fb.players.forEach((p) => {
+          out.push("", p.name);
+          p.lines.forEach((l) => out.push("- " + l.tag + ": " + l.label));
+          p.treds.forEach((t) => out.push("- " + t));
+        });
+        return out.join("\n");
+      }
+      function viewSkillSummary() {
+        const fb = skillFeedback();
+        const has = fb.squadLines.length || fb.players.length;
+        const when = [S.eventName || "Skill zone", S.eventDate].filter(Boolean).join(", ");
+        let h = `<img class="crest sm" src="${LOGO}" alt="Wimborne RFC crest"><h2>Summary</h2><p class="muted">${esc(when)}</p>`;
+        h += `<p class="small muted">Skill feedback for this squad. No match is needed.</p>`;
+        h += `<div class="row" style="margin:12px 0"><button class="btn" data-a="shareSkill" ${has ? "" : "disabled"}>Share skill feedback</button><button class="btn" data-a="modal" data-m="notes">Player notes</button></div>`;
+        if (!has) return h + `<p class="muted">No skill notes yet. Tap a player's name on the Squad screen.</p>`;
+        const list = (lines, treds) =>
+          `<ul class="lines">${lines.map((l) => `<li>${esc(l.tag)}: ${esc(l.label)}</li>`).join("")}${treds.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`;
+        if (fb.squadLines.length) h += `<h3>Squad</h3>${list(fb.squadLines, [])}`;
+        fb.players.forEach((p) => {
+          h += `<h3>${esc(p.name)}</h3>${list(p.lines, p.treds)}`;
+        });
+        return h;
+      }
       function viewSummary() {
+        if (!S.started) return viewSkillSummary();
         const P = S.params;
         let h = `<img class="crest sm" src="${LOGO}" alt="Wimborne RFC crest"><h2>Summary</h2><p class="muted">${esc(S.eventName || "Match day")}${S.eventDate ? ", " + esc(S.eventDate) : ""}</p>`;
         h += `<div class="row" style="margin:12px 0"><button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export CSV</button><button class="btn" data-a="exportJSON">Backup (JSON)</button><button class="btn" data-a="modal" data-m="notes">Player notes</button></div>`;
@@ -3221,7 +3286,8 @@
         });
       }
       function render() {
-        if (!S.started && (S.view === "game" || S.view === "summary")) S.view = S.order.length ? "setup" : "squad";
+        if (!S.started && S.view === "game") S.view = S.order.length ? "setup" : "squad";
+        if (!S.order.length && S.view === "summary") S.view = "squad";
         if (S.theme) document.documentElement.dataset.theme = S.theme;
         else delete document.documentElement.dataset.theme;
         $("#top").innerHTML = header();
@@ -4006,6 +4072,23 @@
             toast("Summary copied");
           } catch (e) {
             saveFile(`fair-time-summary-${stamp()}.txt`, text);
+          }
+        },
+        shareSkill: async () => {
+          const text = skillFeedbackText();
+          try {
+            if (navigator.share) {
+              await navigator.share({ title: "Skill feedback", text });
+              return;
+            }
+          } catch (e) {
+            if (e && e.name === "AbortError") return;
+          }
+          try {
+            await navigator.clipboard.writeText(text);
+            toast("Skill feedback copied");
+          } catch (e) {
+            saveFile(`fair-time-skills-${stamp()}.txt`, text);
           }
         },
         sound: () => {

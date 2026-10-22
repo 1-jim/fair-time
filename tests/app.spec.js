@@ -466,7 +466,52 @@ test("player notes stay after a new session and combine across coaches", async (
     expect(await page.evaluate(() => summaryText())).not.toContain("Teamwork");
   });
 
-  test("player id is a hash of the group name and the player name", async ({ page }) => {
+  test("summary shares skill feedback before a match starts", async ({ page }) => {
+  await expect(page.locator('[data-a=go][data-v=summary]')).toBeDisabled();
+  await expect(page.locator('[data-a=go][data-v=game]')).toBeDisabled();
+  await importSquad(page);
+  await expect(page.locator('[data-a=go][data-v=summary]')).toBeEnabled();
+  await expect(page.locator('[data-a=go][data-v=game]')).toBeDisabled();
+  await tap(page, '[data-a=go][data-v=summary]');
+  await expect(page.getByRole("heading", { name: "Summary" })).toBeVisible();
+  await expect(page.getByText("No skill notes yet.")).toBeVisible();
+  await expect(page.locator("[data-a=shareSkill]")).toBeDisabled();
+
+  await tap(page, '[data-a=go][data-v=squad]');
+  await page.evaluate(() => {
+    FB.coach = "Alex";
+    saveFB();
+  });
+  await tap(page, '.sq-row:has-text("Alfie Sample") .nm');
+  await tap(page, '[data-tag="Tackle height"][data-side="1"]');
+  await tap(page, '[data-tag="Tackle height"][data-side="-1"]');
+  await tap(page, "[data-a=closeModal]");
+  await tap(page, '[data-a=go][data-v=summary]');
+  await expect(page.getByRole("heading", { name: "Squad", level: 3 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Alfie Sample", level: 3 })).toBeVisible();
+  await expect(page.getByText("Tackle height: +1 -1")).toHaveCount(2);
+
+  await page.evaluate(() => {
+    window.__shared = null;
+    Object.defineProperty(Navigator.prototype, "share", {
+      configurable: true,
+      writable: true,
+      value(data) {
+        window.__shared = data;
+        return Promise.resolve();
+      },
+    });
+  });
+  await tap(page, "[data-a=shareSkill]");
+  const shared = await page.evaluate(() => window.__shared);
+  expect(shared.title).toBe("Skill feedback");
+  expect(shared.text).toContain("Tackle height: +1 -1");
+  expect(shared.text).toContain("Alfie Sample");
+  expect(shared.text).not.toContain("example.com");
+  expect(await page.evaluate(() => summaryText())).not.toContain("Tackle height");
+});
+
+test("player id is a hash of the group name and the player name", async ({ page }) => {
     const got = await page.evaluate(() => ({
       hash: playerHash("Sample Rugby Club", "Alfie Sample"),
       again: playerHash("  sample rugby   club ", "alfie sample"),

@@ -218,6 +218,8 @@ Buttons at the top of the Summary:
 
 Tap a player's name on the Squad screen, or open their card on the Match screen. Under **Notes**, each skill is a split. Tap the green side when it is done well, or the red side for the error. Each tap counts for this event, so you can see the balance on the row, for example **+2 -1**.
 
+**Summary** opens as soon as the squad has names, before any match. It lists the skill feedback for this event, for the squad and for each player. **Share skill feedback** sends that text to WhatsApp or anywhere else. You do not need to set up teams.
+
 **Defence** is the collision and the line.
 
 - **Tackle height**: **Low contact** below the sternum, or **Upright / high**.
