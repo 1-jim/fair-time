@@ -24,12 +24,26 @@
           "accept": [
             ".xlsx",
             ".csv",
+            ".json",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "application/vnd.ms-excel",
-            "text/csv"
+            "text/csv",
+            "text/plain",
+            "application/json",
+            "application/octet-stream"
           ]
         }
       ]
     }
-  }
+  },
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "application/json": [".json"],
+        "text/plain": [".json"],
+        "application/octet-stream": [".json"]
+      }
+    }
+  ]
 }

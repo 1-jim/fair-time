@@ -282,6 +282,16 @@
       .row > .btn {
         flex: 1 1 0;
       }
+      .handoff {
+        margin: 12px 0;
+      }
+      .handoff > .btn {
+        flex: 1 1 150px;
+        white-space: normal;
+        line-height: 1.15;
+        text-align: center;
+        padding: 8px 12px;
+      }
       .file {
         position: relative;
         overflow: hidden;
@@ -524,6 +534,27 @@
         border-radius: 8px;
         padding: 8px 12px;
         background: var(--surface);
+      }
+      label.event-label {
+        display: block;
+        margin: 4px 0 10px;
+      }
+      label.event-label input.event {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 4px;
+        min-height: 48px;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        font: 700 28px/1.15 var(--cond);
+        color: var(--ink);
+      }
+      input.event::placeholder {
+        color: var(--muted);
+        font-weight: 600;
       }
       textarea {
         width: 100%;
@@ -1790,7 +1821,7 @@
         }
         return out;
       }
-      function applyImport(res) {
+      function applyImport(res, replace) {
         const byName = {};
         S.order.forEach((id) => (byName[S.players[id].name.toLowerCase()] = id));
         const seen = new Set();
@@ -1820,8 +1851,18 @@
           });
           if (changed) saveFB();
         }
-        S.teams = [];
-        UI.teamUndo = [];
+        if (replace) {
+          S.order = S.order.filter((id) => {
+            const keep = seen.has(S.players[id].name.toLowerCase());
+            if (!keep) delete S.players[id];
+            return keep;
+          });
+          S.teams = [];
+          S.stratPicked = false;
+          UI.teamUndo = [];
+          UI.teamSel = null;
+          UI.simCache = {};
+        }
       }
 
       /* ---------- Player notes ---------- */
@@ -2177,6 +2218,51 @@
           S.teams[r % 2 ? n - 1 - c : c].pids.push(id);
         });
       }
+      function dropFromTeams(id) {
+        S.teams.forEach((tm) => {
+          tm.pids = tm.pids.filter((x) => x !== id);
+        });
+      }
+      // Out players leave their team. Everyone else already placed stays there.
+      // Anyone still unassigned joins the smallest team, which is also what import does.
+      function alignTeams() {
+        if (S.started || !S.teams.length) return;
+        S.order.forEach((id) => {
+          if (S.players[id] && S.players[id].resp === "no") dropFromTeams(id);
+        });
+        S.order.forEach((id) => {
+          const p = S.players[id];
+          if (!p || p.resp === "no") return;
+          if (S.teams.some((tm) => tm.pids.includes(id))) return;
+          let best = 0;
+          S.teams.forEach((tm, i) => {
+            if (tm.pids.length < S.teams[best].pids.length) best = i;
+          });
+          S.teams[best].pids.push(id);
+        });
+      }
+      function applyBestPlan() {
+        if (S.started || S.stratPicked || !S.teams.length) return;
+        const sizes = S.teams.map((tm) => tm.pids.filter((p) => S.players[p] && S.players[p].resp === "going").length);
+        const best = strategies(Math.max(...sizes))[0];
+        if (!best) return;
+        S.params.k = best.k;
+        S.params.interval = best.iv;
+      }
+      function prepareSetup() {
+        if (S.started) return;
+        if (!S.teams.length && S.order.some((id) => S.players[id] && S.players[id].resp !== "no")) splitTeams("az");
+        alignTeams();
+        applyBestPlan();
+      }
+      function flushEditors() {
+        const ev = document.querySelector("input.event");
+        if (ev) S.eventName = ev.value.replace(/\s+/g, " ").trim().slice(0, 120);
+        document.querySelectorAll("input[data-ch=teamName]").forEach((el) => {
+          const tm = S.teams[+el.dataset.i];
+          if (tm) tm.name = el.value.trim() || "Team";
+        });
+      }
       function startDay() {
         S.T = {};
         S.teams.forEach((tm) => {
@@ -2212,6 +2298,7 @@
         S.started = true;
         S.view = "game";
         S.active = 0;
+        window.scrollTo(0, 0);
       }
       function pushUndo(t) {
         const snap = clone(Object.assign({}, t, { undo: undefined }));
@@ -2321,6 +2408,243 @@
         });
         return out.join("\n");
       }
+      /* Squad file: names, responses, teams and settings for another phone. Not a match backup. */
+      function rosterData() {
+        return {
+          kind: "fair-time-roster",
+          v: 1,
+          eventName: S.eventName || "",
+          eventDate: S.eventDate || "",
+          params: {
+            teams: S.params.teams,
+            onField: S.params.onField,
+            gameMins: S.params.gameMins,
+            games: S.params.games,
+            halves: S.params.halves,
+            k: S.params.k,
+            interval: S.params.interval,
+            breakReshuffle: !!S.params.breakReshuffle,
+            outlier: S.params.outlier,
+          },
+          stratPicked: !!S.stratPicked,
+          players: S.order
+            .filter((id) => S.players[id])
+            .map((id) => ({ name: S.players[id].name, resp: S.players[id].resp })),
+          teams: S.teams.map((tm) => ({
+            name: tm.name,
+            players: tm.pids.filter((id) => S.players[id]).map((id) => S.players[id].name),
+          })),
+        };
+      }
+      function rosterText() {
+        const P = S.params;
+        const lines = [S.eventName || "Match day"];
+        if (S.eventDate) lines.push(S.eventDate);
+        lines.push("");
+        S.teams.forEach((tm) => {
+          const ids = tm.pids.filter((id) => S.players[id]);
+          lines.push(tm.name + " (" + ids.length + ")");
+          ids
+            .slice()
+            .sort((a, b) => nm(a).localeCompare(nm(b)))
+            .forEach((id) => {
+              const resp = S.players[id].resp;
+              const mark = resp === "maybe" ? " (late)" : resp === "no" ? " (out)" : "";
+              lines.push("- " + S.players[id].name + mark);
+            });
+          lines.push("");
+        });
+        const onTeam = new Set(S.teams.flatMap((tm) => tm.pids));
+        const rest = S.order.filter((id) => S.players[id] && !onTeam.has(id));
+        const block = (title, ids) => {
+          if (!ids.length) return;
+          lines.push(title);
+          ids
+            .slice()
+            .sort((a, b) => nm(a).localeCompare(nm(b)))
+            .forEach((id) => {
+              const resp = S.players[id].resp;
+              const mark = resp === "maybe" ? " (late)" : resp === "no" ? " (out)" : "";
+              lines.push("- " + nm(id) + mark);
+            });
+          lines.push("");
+        };
+        block(
+          "Not in a team",
+          rest.filter((id) => S.players[id].resp !== "no"),
+        );
+        block(
+          "Not playing",
+          rest.filter((id) => S.players[id].resp === "no"),
+        );
+        const halves = P.halves === 1 ? "1 half" : P.halves + " halves";
+        const games = P.games === 1 ? "1 game" : P.games + " games";
+        lines.push(P.onField + " on the pitch, " + P.gameMins + " minute games, " + halves + ", " + games + ".");
+        lines.push(stratLabel(P.k, P.interval) + ".");
+        return lines.join("\n").replace(/\n+$/, "");
+      }
+      function parsePastedNames(text) {
+        const raw = String(text || "").replace(/\r/g, "");
+        const lines = raw
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const bullet = /^(?:[-*•]\s+)/;
+        const teamHead = /^.+ \(\d+\)\s*$/;
+        const shared = lines.some((s) => bullet.test(s) || teamHead.test(s) || /^(not playing|not in a team)$/i.test(s));
+        const rows = [];
+        const push = (name, resp) => {
+          name = cleanName(name);
+          if (!name || name.length > 80) return;
+          rows.push({ name, resp });
+        };
+        if (shared) {
+          let out = false;
+          lines.forEach((s) => {
+            if (/^not playing$/i.test(s)) {
+              out = true;
+              return;
+            }
+            if (/^not in a team$/i.test(s) || teamHead.test(s)) {
+              out = false;
+              return;
+            }
+            if (!bullet.test(s)) return;
+            let name = s.replace(bullet, "").trim();
+            let resp = out ? "no" : "going";
+            if (/\(late\)\s*$/i.test(name)) {
+              resp = "maybe";
+              name = name.replace(/\(late\)\s*$/i, "").trim();
+            } else if (/\(out\)\s*$/i.test(name)) {
+              resp = "no";
+              name = name.replace(/\(out\)\s*$/i, "").trim();
+            }
+            push(name, resp);
+          });
+          return rows;
+        }
+        raw
+          .split(/\n|,/)
+          .map((s) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
+          .filter(Boolean)
+          .forEach((name) => push(name, "going"));
+        return rows;
+      }
+      function applyRoster(o) {
+        if (!o || typeof o !== "object" || Array.isArray(o)) throw new Error("That file isn't a Fair Time squad file.");
+        if (o.kind !== "fair-time-roster") {
+          if (o.players && !Array.isArray(o.players)) throw new Error("That's a full backup. Use Menu, then Restore a backup.");
+          throw new Error("That file isn't a Fair Time squad file.");
+        }
+        if (o.v !== 1) throw new Error("That squad file is from a newer Fair Time. Update the app, then try again.");
+        if (!Array.isArray(o.players) || !o.players.length) throw new Error("No players in that file.");
+        if (o.players.length > 200) throw new Error("That file has too many players.");
+        const next = fresh();
+        next.sound = S.sound;
+        next.theme = S.theme;
+        next.eventName = String(o.eventName || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 120);
+        next.eventDate = String(o.eventDate || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 80);
+        const lim = { teams: [1, 6], onField: [3, 15], gameMins: [4, 40], games: [1, 8], halves: [1, 2], outlier: [0.5, 5] };
+        if (o.params && typeof o.params === "object") {
+          Object.keys(lim).forEach((k) => {
+            const step = k === "outlier" ? 0.5 : 1;
+            const n = +o.params[k];
+            if (!Number.isFinite(n)) return;
+            const v = Math.min(lim[k][1], Math.max(lim[k][0], Math.round(n / step) * step));
+            next.params[k] = k === "outlier" ? Math.round(v * 2) / 2 : v;
+          });
+          if (typeof o.params.breakReshuffle === "boolean") next.params.breakReshuffle = o.params.breakReshuffle;
+          const k = +o.params.k;
+          const iv = +o.params.interval;
+          if (Number.isFinite(k)) next.params.k = Math.min(12, Math.max(1, Math.round(k)));
+          if (Number.isFinite(iv) && iv >= 0 && iv <= next.params.gameMins) next.params.interval = Math.round(iv * 60) / 60;
+        }
+        next.stratPicked = !!o.stratPicked;
+        const pool = [];
+        o.players.forEach((r) => {
+          const name = cleanName(r && r.name);
+          if (!name || name.length > 80) return;
+          const resp = r.resp === "going" || r.resp === "maybe" || r.resp === "no" ? r.resp : "going";
+          const id = uid();
+          next.players[id] = { id, name: name.slice(0, 80), resp };
+          next.order.push(id);
+          pool.push({ key: name.toLowerCase(), id, used: false });
+        });
+        if (!next.order.length) throw new Error("No players in that file.");
+        const take = (name) => {
+          const key = String(name || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase();
+          const hit = pool.find((p) => !p.used && p.key === key);
+          if (!hit) return null;
+          hit.used = true;
+          return hit.id;
+        };
+        let skipped = 0;
+        if (Array.isArray(o.teams) && o.teams.length) {
+          const teams = o.teams.slice(0, 6);
+          next.params.teams = teams.length;
+          next.teams = teams.map((tm, i) => {
+            const pids = [];
+            (Array.isArray(tm && tm.players) ? tm.players : []).forEach((name) => {
+              const id = take(name);
+              if (!id) {
+                if (String(name || "").trim()) skipped++;
+                return;
+              }
+              pids.push(id);
+            });
+            const name = String((tm && tm.name) || "")
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 40);
+            return { id: "t" + i, name: name || "Team " + "ABCDEFGH"[i], pids };
+          });
+          pool
+            .filter((p) => !p.used && next.players[p.id].resp !== "no")
+            .forEach((p) => {
+              let best = 0;
+              next.teams.forEach((tm, i) => {
+                if (tm.pids.length < next.teams[best].pids.length) best = i;
+              });
+              next.teams[best].pids.push(p.id);
+              p.used = true;
+            });
+          next.view = "setup";
+        }
+        return { next, skipped };
+      }
+      function receiveRoster(o) {
+        const built = applyRoster(o);
+        const warn = S.started
+          ? "This replaces everything on this phone, including any game already under way. This can't be undone. Continue?"
+          : S.order.length
+            ? "This replaces the squad and teams on this phone. Continue?"
+            : "";
+        if (warn && !confirm(warn)) return;
+        S = built.next;
+        UI.modal = null;
+        UI.sheet = null;
+        UI.simCache = {};
+        UI.teamUndo = [];
+        UI.teamSel = null;
+        UI.squadFilter = [];
+        UI.squadKeep = [];
+        const n = S.order.length;
+        const teams = S.teams.length;
+        const playersWord = n === 1 ? "player" : "players";
+        const teamsWord = teams === 1 ? "team" : "teams";
+        let msg = teams ? `Imported ${n} ${playersWord} and ${teams} ${teamsWord}` : `Imported ${n} ${playersWord}`;
+        if (built.skipped) msg += `. ${built.skipped} ${built.skipped === 1 ? "name" : "names"} didn't match`;
+        toast(msg);
+      }
 
       /* ---------- Summaries ---------- */
       function summaryLines(t, tm, gOnly) {
@@ -2417,16 +2741,39 @@
             .map(([v, l]) => `<button data-a="go" data-v="${v}" ${S.view === v ? 'aria-current="page"' : ""} ${dis(v) ? "disabled" : ""}>${l}</button>`)
             .join("")}</nav>`;
       }
+      function eventTitle(asHeading) {
+        const date = S.eventDate ? `<p class="muted">${esc(S.eventDate)}</p>` : "";
+        if (S.started) {
+          if (!asHeading && !S.eventName && !S.eventDate) return "";
+          if (!asHeading) return `<p class="muted">${esc(S.eventName || "Match day")}${S.eventDate ? ", " + esc(S.eventDate) : ""}</p>`;
+          return `<h2>${esc(S.eventName || "Match day squad")}</h2>${date}`;
+        }
+        return `<label class="small muted event-label">Event title<input class="event" value="${esc(S.eventName)}" data-ch="eventName" placeholder="e.g. U12 home" aria-label="Event title" autocomplete="off" maxlength="120"></label>${date}`;
+      }
+      function rosterBar(mode) {
+        const exp = `<button class="btn" data-a="exportRoster" ${S.order.length ? "" : "disabled"}>Export squad file</button>`;
+        const imp = `<label class="btn file">Import squad file<input type="file" accept=".json,application/json" data-ch="rosterFile"></label>`;
+        const share = `<button class="btn" data-a="shareRoster">Share team list</button>`;
+        if (mode === "share") return `<div class="row handoff">${share}</div>`;
+        if (mode === "locked") {
+          return `<div class="row handoff">${share}${exp}${imp}</div><p class="small muted">Share team list sends a message. Import squad file replaces whatever is on this phone, after a warning.</p>`;
+        }
+        const hint = S.teams.length
+          ? "Squad and Setup export the same file: names, teams and settings. On Android, share it from WhatsApp to Fair Time. On an iPhone, use Import squad file."
+          : "Squad and Setup export the same file. Open Setup once if you want the teams included. On Android, share it from WhatsApp to Fair Time.";
+        return `<div class="row handoff">${exp}${imp}</div><p class="small muted" style="margin:8px 0 0">${hint}</p>`;
+      }
       function viewSquad() {
         const ids = S.order;
         const c = { going: 0, maybe: 0, no: 0 };
         ids.forEach((id) => c[S.players[id].resp]++);
         const lock = S.started;
-        let h = `<img class="crest ${ids.length ? "sm" : ""}" src="${LOGO}" alt="Wimborne RFC crest"><h2>${esc(S.eventName || "Match day squad")}</h2>`;
-        if (S.eventDate || S.groupName) h += `<p class="muted">${esc([S.eventDate, S.groupName].filter(Boolean).join(", "))}</p>`;
+        let h = `<img class="crest ${ids.length ? "sm" : ""}" src="${LOGO}" alt="Wimborne RFC crest">${eventTitle(true)}`;
+        if (S.groupName) h += `<p class="muted">${esc(S.groupName)}</p>`;
         h += `<div class="row" style="margin:12px 0"><button class="btn" data-a="coachOpen">${FB.coach ? `Coach name: ${esc(FB.coach)}` : "Set coach name"}</button></div>`;
         if (lock) {
           h += `<div class="note">Match day is under way, so the squad is locked. Add a late player from the Match screen, or start a new session from the menu.</div>`;
+          if (ids.length) h += rosterBar("locked");
         } else {
           h += `<div class="panel">
             <div class="row">
@@ -2442,6 +2789,7 @@
               </ol>
               <p class="small muted" style="margin-top:8px">Only names, responses and the group name are read. Contact details in the file are ignored and never stored.</p>
             </details>
+            ${rosterBar("edit")}
           </div>`;
         }
         if (!ids.length) {
@@ -2495,8 +2843,7 @@
       function viewSetup() {
         const P = S.params;
         const lock = S.started;
-        if (!S.teams.length && S.order.length) splitTeams("az");
-        let h = `<h2>Setup</h2>`;
+        let h = `<h2>Setup</h2>${eventTitle(false)}`;
         if (lock) h += `<div class="note">Match day is under way. These settings are locked; change the substitution plan per team from the Match screen.</div>`;
         h += `<div class="panel">
           ${stepper("Teams", "teams", "", lock)}
@@ -2508,13 +2855,6 @@
           ${stepper("Flag anyone this far from fair share (min)", "outlier", "", false)}
         </div>`;
         const sizes = [...new Set(S.teams.map((tm) => tm.pids.filter((p) => S.players[p].resp === "going").length))];
-        if (!lock && !S.stratPicked && sizes.length) {
-          const best = strategies(Math.max(...sizes))[0];
-          if (best) {
-            P.k = best.k;
-            P.interval = best.iv;
-          }
-        }
         h += `<h3>Substitution plan</h3>`;
         if (!lock) {
           h += `<p class="muted">Pick a plan. Each one was run through a full match day to see how evenly it shares time.</p>`;
@@ -2549,7 +2889,10 @@
                 .join("")}</div></div>`;
           })
           .join("")}</div>`;
-        if (!lock) h += `<div style="margin-top:18px"><button class="btn primary big" data-a="startDay" ${S.teams.length ? "" : "disabled"}>Lock teams and start</button></div>`;
+        if (!lock) {
+          h += rosterBar("edit");
+          h += `<div style="margin-top:18px"><button class="btn primary big" data-a="startDay" ${S.teams.length ? "" : "disabled"}>Lock teams and start</button></div>`;
+        } else h += rosterBar("locked");
         return h;
       }
       function halfElapsed(t) {
@@ -2608,6 +2951,7 @@
             .map((x, i) => `<button data-a="team" data-i="${i}" ${i === S.active ? 'aria-current="true"' : ""}>${esc(x.name)}${S.T[x.id].callType === "plan" && i !== S.active ? '<span class="dot" aria-label="Change due"></span>' : ""}</button>`)
             .join("")}</div>`;
         }
+        h += rosterBar("share");
         const elapsed = halfElapsed(t);
         const over = overTime(t);
         const ot = t.stage === "running" && elapsed >= H();
@@ -2786,11 +3130,13 @@
         const m = UI.modal;
         let inner = "";
         if (m === "paste") {
-          inner = `<h2>Paste names</h2><p class="muted">One name per line, or separated by commas. Everyone pasted is marked as going.</p><textarea id="pasteBox"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="pasteApply">Add names</button></div>`;
+          inner = `<h2>Paste names</h2><p class="muted">One name per line, or separated by commas. A shared team list from WhatsApp works too: late and out marks in that list are kept.${S.order.length ? " This replaces the squad list already on this phone. The event title and date stay." : " A plain list is marked as going."}</p><textarea id="pasteBox"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="pasteApply">${S.order.length ? "Replace squad" : "Add names"}</button></div>`;
         } else if (m === "menu") {
           inner = `<h2>Menu</h2><div class="opts">
             <a class="btn primary" href="guide.html">How to use Fair Time</a>
-            ${S.started ? '<button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export minutes (CSV)</button>' : ""}
+            ${S.started ? '<button class="btn" data-a="shareRoster">Share team list</button><button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export minutes (CSV)</button>' : ""}
+            ${S.order.length ? '<button class="btn" data-a="exportRoster">Export squad file</button>' : ""}
+            <label class="btn file">Import squad file<input type="file" accept=".json,application/json" data-ch="rosterFile"></label>
             <button class="btn" data-a="modal" data-m="notes">Player notes</button>
             <button class="btn" data-a="exportJSON">Back up this session (JSON)</button>
             <label class="btn file">Restore a backup<input type="file" accept=".json,application/json" data-ch="restoreFile"></label>
@@ -3162,6 +3508,7 @@
       const limits = { teams: [1, 6], onField: [3, 15], gameMins: [4, 40], games: [1, 8], halves: [1, 2], outlier: [0.5, 5] };
       const A = {
         go: (d) => {
+          if (d.v === "setup") prepareSetup();
           S.view = d.v;
           UI.sheet = null;
           UI.modal = null;
@@ -3182,33 +3529,54 @@
         },
         resp: (d) => {
           if (!UI.squadKeep.includes(d.p)) UI.squadKeep.push(d.p);
+          if (S.players[d.p].resp === d.r) return;
           S.players[d.p].resp = d.r;
-          S.teams = [];
-          UI.teamUndo = [];
+          alignTeams();
+          if (!S.started) {
+            S.stratPicked = false;
+            UI.simCache = {};
+            applyBestPlan();
+          }
         },
         addSquad: () => {
           const name = $("#addName").value.trim();
           if (!name) return;
           applyImport({ rows: [{ name, resp: "going" }] });
+          alignTeams();
+          if (!S.started) {
+            S.stratPicked = false;
+            UI.simCache = {};
+            applyBestPlan();
+          }
         },
         removeSquad: (d) => {
           delete S.players[d.p];
           S.order = S.order.filter((x) => x !== d.p);
-          S.teams = [];
-          UI.teamUndo = [];
+          dropFromTeams(d.p);
+          if (!S.started) {
+            S.stratPicked = false;
+            UI.simCache = {};
+            applyBestPlan();
+          }
         },
         pasteApply: () => {
-          const rows = $("#pasteBox")
-            .value.split(/\n|,/)
-            .map((s) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
-            .filter(Boolean)
-            .map((name) => ({ name, resp: "going" }));
-          applyImport({ rows });
+          const rows = parsePastedNames($("#pasteBox").value);
+          if (!rows.length) {
+            toast("No names found in that paste.");
+            return;
+          }
+          const replacing = S.order.length > 0;
+          if (
+            replacing &&
+            !confirm("This replaces the squad list and clears the teams. Names from Spond or an earlier paste will be removed. The event title and date stay. Continue?")
+          )
+            return;
+          applyImport({ rows }, true);
           UI.modal = null;
-          toast(`Added ${rows.length} names`);
+          toast(replacing ? `Squad list replaced with ${rows.length} names` : `Added ${rows.length} names`);
         },
         toSetup: () => {
-          if (!S.teams.length) splitTeams("az");
+          prepareSetup();
           S.view = "setup";
         },
         param: (d) => {
@@ -3223,13 +3591,17 @@
           }
           const hm = P.gameMins / P.halves;
           if (P.interval >= hm) P.interval = 0;
-          S.stratPicked = false;
-          UI.simCache = {};
+          if (!S.started) {
+            S.stratPicked = false;
+            UI.simCache = {};
+            applyBestPlan();
+          }
         },
         toggleBreak: () => {
           S.params.breakReshuffle = !S.params.breakReshuffle;
           S.stratPicked = false;
           UI.simCache = {};
+          applyBestPlan();
         },
         pickStrat: (d) => {
           S.params.k = +d.k;
@@ -3581,6 +3953,44 @@
           saveFile(`fair-time-${stamp()}.json`, JSON.stringify(o, null, 2));
         },
         exportCSV: () => saveFile(`fair-time-minutes-${stamp()}.csv`, csvText()),
+        exportRoster: async () => {
+          if (!S.order.length) return;
+          flushEditors();
+          alignTeams();
+          const data = JSON.stringify(rosterData(), null, 2);
+          const filename = `fair-time-squad-${stamp()}.json`;
+          const file = new File([data], filename, { type: "application/json" });
+          try {
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: S.eventName || "Fair Time squad", text: "Open Fair Time and tap Import squad file." });
+              return;
+            }
+          } catch (e) {
+            if (e && e.name === "AbortError") return;
+          }
+          await saveFile(filename, data);
+        },
+        shareRoster: async () => {
+          if (!S.started || !S.teams.length) return;
+          flushEditors();
+          alignTeams();
+          const text = rosterText();
+          const title = S.eventName || "Team list";
+          try {
+            if (navigator.share) {
+              await navigator.share({ title, text });
+              return;
+            }
+          } catch (e) {
+            if (e && e.name === "AbortError") return;
+          }
+          try {
+            await navigator.clipboard.writeText(text);
+            toast("Team list copied");
+          } catch (e) {
+            saveFile(`fair-time-teams-${stamp()}.txt`, text);
+          }
+        },
         shareText: async () => {
           const text = summaryText();
           try {
@@ -3617,8 +4027,29 @@
           toast("Previous session cleared");
         },
       };
+      function looksLikeSquadFile(name, type, head) {
+        return name.endsWith(".json") || /json/.test(type) || head.startsWith("{") || head.startsWith("[");
+      }
       async function importFileObj(f) {
           try {
+            const name = (f.name || "").toLowerCase();
+            const spreadsheet = name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv");
+            if (!spreadsheet) {
+              const head = (await f.slice(0, 16).text()).replace(/^\uFEFF/, "").trim();
+              if (looksLikeSquadFile(name, f.type || "", head)) {
+                let o;
+                try {
+                  o = JSON.parse(await f.text());
+                } catch (e) {
+                  throw new Error("That file isn't a Fair Time squad file.");
+                }
+                receiveRoster(o);
+                save();
+                render();
+                return;
+              }
+            }
+            if (S.started) throw new Error("Match day is under way. Start a new session before importing a new squad.");
             let sheets;
             try {
               sheets = await readSheets(f);
@@ -3627,7 +4058,7 @@
             }
             const res = parseWorkbook(sheets);
             if (!res.rows.length) throw new Error("No names found in that file. Export the event participant list from Spond, or use Paste names.");
-            applyImport(res);
+            applyImport(res, true);
             const g = res.rows.filter((r) => r.resp === "going").length;
             toast(`Imported ${res.rows.length} names, ${g} going`);
           } catch (e) {
@@ -3648,7 +4079,8 @@
           if (!f) return;
           try {
             const o = JSON.parse(await f.text());
-            if (!o || o.v !== 1 || !o.params) throw new Error("That file isn't a Fair Time backup.");
+            if (o && o.kind === "fair-time-roster") throw new Error("That's a squad file. Use Import squad file.");
+            if (!o || o.v !== 1 || !o.params || !o.players || Array.isArray(o.players)) throw new Error("That file isn't a Fair Time backup.");
             if (!confirm("Restoring replaces everything currently on this device. Continue?")) return;
             Object.values(o.T || {}).forEach((t) => (t.undo = t.undo || []));
             S = o;
@@ -3656,10 +4088,32 @@
             UI.simCache = {};
             toast("Backup restored");
           } catch (e) {
+            toast(e instanceof SyntaxError ? "That file isn't a Fair Time backup." : e.message || "Couldn't read that file.");
+          }
+          save();
+          render();
+        },
+        rosterFile: async (el) => {
+          const f = el.files && el.files[0];
+          el.value = "";
+          if (!f) return;
+          try {
+            let o;
+            try {
+              o = JSON.parse(await f.text());
+            } catch (e) {
+              throw new Error("That file isn't a Fair Time squad file.");
+            }
+            receiveRoster(o);
+          } catch (e) {
             toast(e.message || "Couldn't read that file.");
           }
           save();
           render();
+        },
+        eventName: (el) => {
+          S.eventName = el.value.replace(/\s+/g, " ").trim().slice(0, 120);
+          save();
         },
         teamName: (el) => {
           S.teams[+el.dataset.i].name = el.value.trim() || "Team";
@@ -3687,6 +4141,7 @@
         if (!el || el.disabled) return;
         const fn = A[el.dataset.a];
         if (!fn) return;
+        flushEditors();
         const r = fn(el.dataset, el, e);
         if (r && r.then) r.then(() => (save(), render()));
         save();
@@ -3718,17 +4173,28 @@
           const r = await c.match(key);
           if (!r) return;
           const name = decodeURIComponent(r.headers.get("x-name") || "shared.xlsx");
-          const file = new File([await r.blob()], name);
+          const type = r.headers.get("content-type") || "";
+          const file = new File([await r.blob()], name, { type });
           await c.delete(key);
-          if (S.started) {
-            toast("Match day is under way. Start a new session before importing a new squad.");
-            return;
-          }
-          S.view = "squad";
           await importFileObj(file);
         } catch (e) {
-          toast("Couldn't open the shared file. Use Import Spond file instead.");
+          toast("Couldn't open the shared file. Use Import on the Squad screen instead.");
         }
+      }
+      if (window.launchQueue) {
+        launchQueue.setConsumer(async (params) => {
+          const handle = params.files && params.files[0];
+          if (!handle) return;
+          try {
+            await importFileObj(await handle.getFile());
+          } catch (e) {
+            toast("Couldn't open that file. Use Import squad file instead.");
+          }
+        });
+      }
+      if (!S.started && S.view === "setup") {
+        prepareSetup();
+        save();
       }
       render();
       checkShared();
