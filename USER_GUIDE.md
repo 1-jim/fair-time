@@ -111,7 +111,7 @@ The plan marked **Best** balances fairness against disruption. For example, with
 
 ### Splitting the squad
 
-Start with **Split A to Z** or **Shuffle** to get a rough split, then fine-tune by hand. This is where you balance the teams by ability and experience, or set up an A and a B team. There are no player ratings: you move people where you want them.
+Start with **Shuffle** or **First team**, then fine-tune by hand. **Shuffle** is the default: it spreads role models across the teams. **First team** puts the players with the most stars on team A, then the next team, and so on. **Split A to Z** is there when you want a plain alphabetical deal. You can still move anyone by hand.
 
 | To do this | Do this |
 | --- | --- |
@@ -210,13 +210,15 @@ Buttons at the top of the Summary:
 
 ### Starting next week
 
-**Menu > Start a new session** clears the squad, the teams and the minutes. It warns you first and offers a backup. Player notes are kept.
+**Menu > Start a new session** clears the squad, the teams and the minutes. It warns you first and offers a backup. Player notes and role-model stars are kept.
 
 ---
 
 ## 6. Player notes
 
-Tap a player's name on the Squad screen, or open their card on the Match screen. Under **Notes**, each skill is a split. Tap the green side when it is done well, or the red side for the error. Each tap counts for this event, so you can see the balance on the row, for example **+2 -1**.
+Tap a player's name on the Squad screen, or open their card on the Match screen. At the top, **Role model** gives a gold star for Attack, Defence, or Contest. Tap a pillar to turn that star on or off. A player can show one, two, or all three stars beside their name. Those stars are used when you split the teams. They stay on this phone, and they do not need a coach name.
+
+Under **Notes**, each skill is a split. Tap the green side when it is done well, or the red side for the error. Each tap counts for this event, so you can see the balance on the row, for example **+2 -1**.
 
 **Summary** opens as soon as the squad has names, before any match. It lists the skill feedback for this event, for the squad and for each player. **Share skill feedback** sends that text to WhatsApp or anywhere else. You do not need to set up teams.
 
@@ -242,7 +244,7 @@ Under **TREDS**, tap a positive behaviour: teamwork, respect, enjoyment, discipl
 
 Tap **Set coach name** on the Squad screen. Every note is marked with that name, so the same point from two coaches shows as reaffirmed. If the name is not set yet, the first note asks for it.
 
-Notes stay on this phone when you start a new session or import next week's Spond file. The same spelling of a name, in the same Spond group, keeps the same notes. Two age groups on one phone stay separate because the group name from the file is part of the match.
+Notes and role-model stars stay on this phone when you start a new session or import next week's Spond file. The same spelling of a name, in the same Spond group, keeps the same notes and stars. Two age groups on one phone stay separate because the group name from the file is part of the match.
 
 On the squad list, a result with a number means that many taps, or that many coaches when more than one coach saw it. **Low contact · 2** has been tapped twice, or seen by two coaches.
 
