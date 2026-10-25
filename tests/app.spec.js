@@ -162,7 +162,7 @@ test("concussion cannot be cleared by the normal return option", async ({ page }
   await tap(page, "[data-a=kickoff]");
   await tap(page, ".chips .chip.field, .chips .chip.off");
   await tap(page, "[data-s=concussed]");
-  await tap(page, ".chip.out");
+  await tap(page, ".chip.out:has-text('Concussion')");
   await expect(page.getByText("Fit to play again")).toHaveCount(0);
   await expect(page.getByText("Clear: entered by mistake")).toBeVisible();
 });
@@ -509,6 +509,70 @@ test("player notes stay after a new session and combine across coaches", async (
   expect(shared.text).toContain("Alfie Sample");
   expect(shared.text).not.toContain("example.com");
   expect(await page.evaluate(() => summaryText())).not.toContain("Tackle height");
+});
+
+test("a player can show one, two or three role-model stars", async ({ page }) => {
+  await importSquad(page);
+  await page.evaluate(() => {
+    FB.coach = "Alex";
+    saveFB();
+  });
+  await tap(page, '.sq-row:has-text("Alfie Sample") .nm');
+  await tap(page, '[data-a=fbStar][data-pillar=attack]');
+  await tap(page, '[data-a=fbStar][data-pillar=defence]');
+  await expect(page.locator('[data-a=fbStar][data-pillar=attack]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[data-a=fbStar][data-pillar=defence]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[data-a=fbStar][data-pillar=contest]')).toHaveAttribute("aria-pressed", "false");
+  await tap(page, "[data-a=closeModal]");
+  const row = page.locator('.sq-row:has-text("Alfie Sample") .stars');
+  await expect(row.locator(".star")).toHaveCount(2);
+  await expect(row).toHaveAttribute("aria-label", "Role model: Attack, Defence");
+  await tap(page, '.sq-row:has-text("Alfie Sample") .nm');
+  await tap(page, '[data-a=fbStar][data-pillar=contest]');
+  await tap(page, "[data-a=closeModal]");
+  await expect(page.locator('.sq-row:has-text("Alfie Sample") .stars .star')).toHaveCount(3);
+  await tap(page, '.sq-row:has-text("Alfie Sample") .nm');
+  await tap(page, '[data-a=fbStar][data-pillar=attack]');
+  await tap(page, "[data-a=closeModal]");
+  await expect(page.locator('.sq-row:has-text("Alfie Sample") .stars')).toHaveAttribute("aria-label", "Role model: Defence, Contest");
+
+  const kept = await page.evaluate(() => {
+    const key = playerHash(S.groupName, "Alfie Sample");
+    const before = FB.stars[key].slice();
+    A.newConfirm();
+    return { before, after: FB.stars[key] };
+  });
+  expect(kept.before).toEqual(["defence", "contest"]);
+  expect(kept.after).toEqual(["defence", "contest"]);
+});
+
+test("shuffle spreads role models and first team packs stars onto team A", async ({ page }) => {
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  const spread = await page.evaluate(() => {
+    const going = S.order.filter((id) => S.players[id].resp === "going");
+    FB.stars = {};
+    going.slice(0, 4).forEach((id) => {
+      FB.stars[playerHash(S.groupName, S.players[id].name)] = ["attack"];
+    });
+    going.slice(4, 6).forEach((id) => {
+      FB.stars[playerHash(S.groupName, S.players[id].name)] = ["attack", "defence", "contest"];
+    });
+    saveFB();
+    splitTeams("shuffle");
+    const attack = S.teams.map((t) => t.pids.filter((id) => starsFor(nm(id)).includes("attack")).length);
+    splitTeams("rated");
+    const top = going.slice(0, 6);
+    const onA = top.filter((id) => S.teams[0].pids.includes(id)).length;
+    const bestOnA = Math.max(...S.teams[0].pids.map((id) => starCount(id)));
+    const worstLater = Math.min(...S.teams[1].pids.map((id) => starCount(id)));
+    return { attack, onA, bestOnA, worstLater, notes: feedbackFile() };
+  });
+  expect(spread.attack[0]).toBe(3);
+  expect(spread.attack[1]).toBe(3);
+  expect(spread.onA).toBe(6);
+  expect(spread.bestOnA).toBeGreaterThanOrEqual(spread.worstLater);
+  expect(JSON.stringify(spread.notes)).not.toContain("attack");
 });
 
 test("player id is a hash of the group name and the player name", async ({ page }) => {

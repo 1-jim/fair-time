@@ -402,6 +402,71 @@
         font: 600 19px var(--cond);
         color: inherit;
       }
+      .nmline {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .stars {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .star {
+        width: 28px;
+        height: 28px;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #e6b325;
+        color: #3a2800;
+        clip-path: polygon(50% 0%, 62% 32%, 98% 35%, 69% 55%, 79% 91%, 50% 70%, 21% 91%, 31% 55%, 2% 35%, 38% 32%);
+        font: 800 13px/1 "Barlow", system-ui, sans-serif;
+      }
+      .star span {
+        display: block;
+        margin-top: 4px;
+      }
+      .starsvg {
+        width: 28px;
+        height: 28px;
+        flex: 0 0 auto;
+        color: var(--muted);
+      }
+      .starpick {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .starb {
+        flex: 1;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        font: 600 16px var(--cond);
+        color: inherit;
+      }
+      .starb .starsvg {
+        width: 28px;
+        height: 28px;
+        color: var(--muted);
+      }
+      .starb.on {
+        background: #f4d56a;
+        border-color: #c89600;
+        color: #3a2800;
+      }
+      .starb.on .starsvg {
+        color: #e6b325;
+      }
       .fbmark {
         font: 600 13px/1.2 "Barlow", system-ui, sans-serif;
         color: var(--muted);
@@ -737,6 +802,10 @@
         height: 18px;
         background: radial-gradient(circle, var(--muted) 1.2px, transparent 1.6px) 0 0 / 4px 4px;
         opacity: 0.7;
+      }
+      .tchip .nmline {
+        flex: 1;
+        min-width: 0;
       }
       .tchip.maybe {
         border-color: var(--next);
@@ -1293,6 +1362,12 @@
       const FB_SKILL = FB_PILLARS.map((p) => p.actions.map((a) => a.tag)).reduce((a, b) => a.concat(b), []);
       const FB_TREDS = ["Teamwork", "Respect", "Enjoyment", "Discipline", "Sportsmanship"];
       const FB_TAGS = FB_SKILL.concat(FB_TREDS);
+      const STAR_PILLARS = [
+        { id: "attack", letter: "A", name: "Attack" },
+        { id: "defence", letter: "D", name: "Defence" },
+        { id: "contest", letter: "C", name: "Contest" },
+      ];
+      const STAR_IDS = STAR_PILLARS.map((p) => p.id);
       const $ = (s) => document.querySelector(s);
       const uid = () => Math.random().toString(36).slice(2, 10);
       const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -1849,6 +1924,15 @@
             rec.player = playerHash(res.group, rec.name);
             changed = true;
           });
+          res.rows.forEach((r) => {
+            const from = playerHash("", r.name);
+            const to = playerHash(res.group, r.name);
+            if (from === to || !FB.stars[from]) return;
+            const merged = STAR_IDS.filter((id) => (FB.stars[to] || []).includes(id) || FB.stars[from].includes(id));
+            if (merged.length) FB.stars[to] = merged;
+            delete FB.stars[from];
+            changed = true;
+          });
           if (changed) saveFB();
         }
         if (replace) {
@@ -1866,12 +1950,23 @@
       }
 
       /* ---------- Player notes ---------- */
+      function cleanStars(raw) {
+        const stars = {};
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return stars;
+        Object.keys(raw).forEach((key) => {
+          if (!/^[a-f0-9]{64}$/.test(key) || !Array.isArray(raw[key])) return;
+          const have = STAR_IDS.filter((id) => raw[key].includes(id));
+          if (have.length) stars[key] = have;
+        });
+        return stars;
+      }
       function loadFB() {
         try {
           const o = JSON.parse(localStorage.getItem(FB_KEY) || "null");
-          if (!o || o.v !== 1 || !Array.isArray(o.records)) return { v: 1, coach: "", records: [] };
+          if (!o || o.v !== 1 || !Array.isArray(o.records)) return { v: 1, coach: "", records: [], stars: {} };
           const records = o.records.map(cleanFbRecord).filter(Boolean);
-          const fb = { v: 1, coach: String(o.coach || "").slice(0, 40), records };
+          const stars = cleanStars(o.stars);
+          const fb = { v: 1, coach: String(o.coach || "").slice(0, 40), records, stars };
           if (records.length !== o.records.length) {
             try {
               localStorage.setItem(FB_KEY, JSON.stringify(fb));
@@ -1879,7 +1974,7 @@
           }
           return fb;
         } catch (e) {
-          return { v: 1, coach: "", records: [] };
+          return { v: 1, coach: "", records: [], stars: {} };
         }
       }
       function saveFB() {
@@ -1948,6 +2043,24 @@
       }
       function playerHash(group, name) {
         return sha256(normKey(group) + "\n" + normKey(name));
+      }
+      function starsFor(name) {
+        const key = playerHash(S.groupName || "", name);
+        const have = (FB.stars && FB.stars[key]) || [];
+        return STAR_IDS.filter((id) => have.includes(id));
+      }
+      function starCount(id) {
+        return starsFor(nm(id)).length;
+      }
+      function starSvg(letter) {
+        return `<svg class="starsvg" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.2 14.9,8.2 22.4,8.8 16.7,13.8 18.4,21.2 12,17.2 5.6,21.2 7.3,13.8 1.6,8.8 9.1,8.2" fill="currentColor"/><text x="12" y="14.2" text-anchor="middle" font-size="8" font-weight="700" fill="#3a2800">${letter}</text></svg>`;
+      }
+      function starHtml(name) {
+        const have = starsFor(name);
+        if (!have.length) return "";
+        const bits = STAR_PILLARS.filter((p) => have.includes(p.id));
+        const label = "Role model: " + bits.map((p) => p.name).join(", ");
+        return `<span class="stars" aria-label="${esc(label)}">${bits.map((p) => `<span class="star" title="${esc(p.name)}"><span>${p.letter}</span></span>`).join("")}</span>`;
       }
       function fbFor(name, group) {
         const id = playerHash(group || "", name);
@@ -2070,6 +2183,11 @@
           .join("");
       }
       function feedbackBlock(pid, src) {
+        const have = starsFor(nm(pid));
+        const picks = STAR_PILLARS.map(
+          (p) =>
+            `<button class="starb ${have.includes(p.id) ? "on" : ""}" data-a="fbStar" data-p="${pid}" data-pillar="${p.id}" aria-pressed="${have.includes(p.id)}" aria-label="${esc(p.name)} role model">${starSvg(p.letter)}<span>${esc(p.name)}</span></button>`,
+        ).join("");
         const pillars = FB_PILLARS.map((p) => {
           const rows = p.actions
             .map((a) => {
@@ -2080,7 +2198,7 @@
           return `<div class="grp">${esc(p.name)}</div><p class="small muted">${esc(p.hint)}</p>${rows}`;
         }).join("");
         const treds = FB_TREDS.map((t) => `<button class="tagb" data-a="fbTag" data-p="${pid}" data-tag="${esc(t)}" data-src="${src || ""}">${esc(t)}</button>`).join("");
-        return `<div class="grp">Notes</div><p class="small muted">Tap the green side when it is done well, or the red side for the error. Each tap counts for this event.</p>${pillars}<div class="grp">TREDS</div><p class="small muted">A positive behaviour. Text in this box is saved with the behaviour you tap.</p><div class="tagrow">${treds}</div><div class="add"><input id="fbTreds" maxlength="80" placeholder="Optional detail, such as helped a teammate up" autocomplete="off"></div>${fbListHtml(fbFor(nm(pid), S.groupName || ""))}`;
+        return `<div class="grp">Role model</div><p class="small muted">A gold star for each pillar this player leads. One player can have one, two or three stars.</p><div class="starpick">${picks}</div><div class="grp">Notes</div><p class="small muted">Tap the green side when it is done well, or the red side for the error. Each tap counts for this event.</p>${pillars}<div class="grp">TREDS</div><p class="small muted">A positive behaviour. Text in this box is saved with the behaviour you tap.</p><div class="tagrow">${treds}</div><div class="add"><input id="fbTreds" maxlength="80" placeholder="Optional detail, such as helped a teammate up" autocomplete="off"></div>${fbListHtml(fbFor(nm(pid), S.groupName || ""))}`;
       }
       function allNotesHtml() {
         const players = fbPlayers();
@@ -2197,26 +2315,91 @@
       /* ---------- Teams ---------- */
       function splitTeams(mode) {
         const n = S.params.teams;
-        let ids = S.order.filter((id) => S.players[id].resp !== "no");
-        if (mode === "shuffle") {
-          for (let i = ids.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [ids[i], ids[j]] = [ids[j], ids[i]];
-          }
-        } else ids.sort((a, b) => nm(a).localeCompare(nm(b)));
-        const going = ids.filter((id) => S.players[id].resp === "going");
-        const maybe = ids.filter((id) => S.players[id].resp === "maybe");
+        const pool = S.order.filter((id) => S.players[id].resp !== "no");
         const old = S.teams;
         S.teams = Array.from({ length: n }, (_, i) => ({
           id: "t" + i,
           name: (old[i] && old[i].name) || "Team " + "ABCDEFGH"[i],
           pids: [],
         }));
-        [...going, ...maybe].forEach((id, i) => {
-          const r = Math.floor(i / n);
-          const c = i % n;
-          S.teams[r % 2 ? n - 1 - c : c].pids.push(id);
-        });
+        const going = pool.filter((id) => S.players[id].resp === "going");
+        const maybe = pool.filter((id) => S.players[id].resp === "maybe");
+        if (mode === "az") {
+          const byName = (ids) => ids.slice().sort((a, b) => nm(a).localeCompare(nm(b)));
+          [...byName(going), ...byName(maybe)].forEach((id, i) => {
+            const r = Math.floor(i / n);
+            const c = i % n;
+            S.teams[r % 2 ? n - 1 - c : c].pids.push(id);
+          });
+          return;
+        }
+        if (mode === "rated") {
+          const ranked = pool.slice();
+          for (let i = ranked.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [ranked[i], ranked[j]] = [ranked[j], ranked[i]];
+          }
+          ranked.sort((a, b) => {
+            const ds = starCount(b) - starCount(a);
+            if (ds) return ds;
+            const ag = S.players[a].resp === "going" ? 0 : 1;
+            const bg = S.players[b].resp === "going" ? 0 : 1;
+            return ag - bg;
+          });
+          const base = Math.floor(ranked.length / n);
+          let extra = ranked.length % n;
+          let at = 0;
+          for (let t = 0; t < n; t++) {
+            const take = base + (extra > 0 ? 1 : 0);
+            if (extra > 0) extra--;
+            for (let k = 0; k < take; k++) S.teams[t].pids.push(ranked[at++]);
+          }
+          return;
+        }
+        const place = (id) => {
+          const mine = starsFor(nm(id));
+          const score = (i) => {
+            const tm = S.teams[i];
+            let overlap = 0;
+            tm.pids.forEach((pid) => {
+              const theirs = starsFor(nm(pid));
+              mine.forEach((pill) => {
+                if (theirs.includes(pill)) overlap++;
+              });
+            });
+            return [overlap, tm.pids.reduce((sum, pid) => sum + starCount(pid), 0), tm.pids.length];
+          };
+          let bestKey = null;
+          let ties = [];
+          const before = (key, other) => {
+            for (let k = 0; k < key.length; k++) {
+              if (key[k] < other[k]) return true;
+              if (key[k] > other[k]) return false;
+            }
+            return false;
+          };
+          for (let i = 0; i < n; i++) {
+            const key = score(i);
+            if (!bestKey || before(key, bestKey)) {
+              bestKey = key;
+              ties = [i];
+            } else if (key.every((v, k) => v === bestKey[k])) ties.push(i);
+          }
+          S.teams[ties[Math.floor(Math.random() * ties.length)]].pids.push(id);
+        };
+        const mix = (ids) => {
+          const copy = ids.slice();
+          for (let i = copy.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [copy[i], copy[j]] = [copy[j], copy[i]];
+          }
+          const models = copy.filter((id) => starCount(id) > 0).sort((a, b) => starCount(b) - starCount(a));
+          const rest = copy.filter((id) => starCount(id) === 0);
+          models.forEach(place);
+          rest.forEach(place);
+        };
+        mix(going);
+        mix(maybe);
       }
       function dropFromTeams(id) {
         S.teams.forEach((tm) => {
@@ -2251,7 +2434,7 @@
       }
       function prepareSetup() {
         if (S.started) return;
-        if (!S.teams.length && S.order.some((id) => S.players[id] && S.players[id].resp !== "no")) splitTeams("az");
+        if (!S.teams.length && S.order.some((id) => S.players[id] && S.players[id].resp !== "no")) splitTeams("shuffle");
         alignTeams();
         applyBestPlan();
       }
@@ -2809,7 +2992,7 @@
             .map((id) => {
               const p = S.players[id];
               const b = (r, l) => `<button class="${r}" aria-pressed="${p.resp === r}" data-a="resp" data-p="${id}" data-r="${r}" ${lock ? "disabled" : ""}>${l}</button>`;
-              return `<div class="sq-row"><button class="nm" data-a="noteOpen" data-p="${id}" aria-label="Notes for ${esc(p.name)}">${esc(p.name)}${fbMark(p.name)}</button><span class="seg">${b("going", "Going")}${b("maybe", "Late")}${b("no", "Out")}</span>${lock ? "" : `<button class="x" data-a="removeSquad" data-p="${id}" aria-label="Remove ${esc(p.name)}">×</button>`}</div>`;
+              return `<div class="sq-row"><button class="nm" data-a="noteOpen" data-p="${id}" aria-label="Notes for ${esc(p.name)}${starsFor(p.name).length ? ", " + STAR_PILLARS.filter((x) => starsFor(p.name).includes(x.id)).map((x) => x.name).join(", ") + " role model" : ""}"><span class="nmline">${esc(p.name)}${starHtml(p.name)}</span>${fbMark(p.name)}</button><span class="seg">${b("going", "Going")}${b("maybe", "Late")}${b("no", "Out")}</span>${lock ? "" : `<button class="x" data-a="removeSquad" data-p="${id}" aria-label="Remove ${esc(p.name)}">×</button>`}</div>`;
             })
             .join("");
         }
@@ -2865,8 +3048,8 @@
         }
         h += `<h3>Teams</h3>`;
         if (!lock) {
-          h += `<div class="tbar"><button class="btn" data-a="split" data-m="az">Split A to Z</button><button class="btn" data-a="split" data-m="shuffle">Shuffle</button><button class="btn" data-a="teamUndo" ${UI.teamUndo.length ? "" : "disabled"}>Undo</button></div>
-            <p class="small muted">Drag a name to another team, or drop it on a player to swap them. On a phone, press and hold first. Or tap a name, then tap where it goes. Amber names haven't confirmed yet.</p>`;
+          h += `<div class="tbar"><button class="btn" data-a="split" data-m="shuffle">Shuffle</button><button class="btn" data-a="split" data-m="rated">First team</button><button class="btn" data-a="split" data-m="az">Split A to Z</button><button class="btn" data-a="teamUndo" ${UI.teamUndo.length ? "" : "disabled"}>Undo</button></div>
+            <p class="small muted">Shuffle spreads role models across the teams. First team puts the players with the most stars on team A. Drag a name to another team, or drop it on a player to swap them. On a phone, press and hold first. Or tap a name, then tap where it goes. Amber names haven't confirmed yet.</p>`;
         }
         const selTeam = UI.teamSel ? S.teams.findIndex((x) => x.pids.includes(UI.teamSel)) : -1;
         h += `<div class="teams ${S.teams.length > 2 ? "many" : ""}" style="--n:${S.teams.length}">${S.teams
@@ -2884,7 +3067,7 @@
                 .sort((a, b) => nm(a).localeCompare(nm(b)))
                 .map(
                   (p) =>
-                    `<button class="tchip ${S.players[p].resp === "maybe" ? "maybe" : ""} ${UI.teamSel === p ? "sel" : ""}" data-tp="${p}" ${lock ? "disabled" : ""} aria-pressed="${UI.teamSel === p}">${esc(nm(p))}</button>`,
+                    `<button class="tchip ${S.players[p].resp === "maybe" ? "maybe" : ""} ${UI.teamSel === p ? "sel" : ""}" data-tp="${p}" ${lock ? "disabled" : ""} aria-pressed="${UI.teamSel === p}"><span class="nmline">${esc(nm(p))}${starHtml(nm(p))}</span></button>`,
                 )
                 .join("")}</div></div>`;
           })
@@ -2937,7 +3120,7 @@
         const p = t.ps[pid];
         const out = !["field", "bench"].includes(p.st);
         return `<button class="chip ${cls}" data-a="player" data-t="${t.id}" data-p="${pid}">
-          <span class="nm">${esc(nm(pid))}</span>${tag ? `<span class="tag">${tag}</span>` : ""}
+          <span class="nm"><span class="nmline">${esc(nm(pid))}${starHtml(nm(pid))}</span></span>${tag ? `<span class="tag">${tag}</span>` : ""}
           <span class="t"><span data-live="pm:${t.id}:${pid}">${fmt(p.on)}</span><small>${out ? esc(ST_LABEL[p.st]) : `<span data-live="df:${t.id}:${pid}">${fmtS(p.on - p.ent)}</span>`}</small></span></button>`;
       }
       function viewGame() {
@@ -3210,7 +3393,7 @@
             <button class="btn warn" data-a="modal" data-m="new">Start a new session</button>
             <button class="btn" data-a="closeModal">Close</button></div>`;
         } else if (m === "new") {
-          inner = `<h2>Start a new session?</h2><div class="note bad">This clears the squad, teams and every minute on this device. Player notes are kept. It can't be undone.</div><div class="opts"><button class="btn" data-a="exportJSON">Back up first (JSON)</button><button class="btn warn" data-a="newConfirm">Clear and start new</button><button class="btn" data-a="closeModal">Keep this session</button></div>`;
+          inner = `<h2>Start a new session?</h2><div class="note bad">This clears the squad, teams and every minute on this device. Player notes and role-model stars are kept. It can't be undone.</div><div class="opts"><button class="btn" data-a="exportJSON">Back up first (JSON)</button><button class="btn warn" data-a="newConfirm">Clear and start new</button><button class="btn" data-a="closeModal">Keep this session</button></div>`;
         } else if (m === "add") {
           inner = `<h2>Add a player</h2><p class="muted">They go on the bench with a fair share counted from now.</p><div class="add"><input id="addLate" placeholder="Name" autocomplete="off"></div><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="addLate">Add to ${esc(S.teams[S.active].name)}</button></div>`;
         } else if (m === "strat") {
@@ -3652,7 +3835,7 @@
           P[d.k] = Math.min(hi, Math.max(lo, +P[d.k] + step * +d.s));
           if (d.k === "teams") {
             teamSnap();
-            splitTeams("az");
+            splitTeams("shuffle");
             UI.teamSel = null;
           }
           const hm = P.gameMins / P.halves;
@@ -3855,10 +4038,7 @@
         noteOpen: (d) => {
           UI.notePid = d.p;
           UI.coachBack = "";
-          if (!FB.coach) {
-            UI.pending = { pid: d.p, src: "note" };
-            UI.modal = "coach";
-          } else UI.modal = "note";
+          UI.modal = "note";
         },
         coachOpen: () => {
           UI.coachBack = UI.modal === "notes" ? "notes" : "";
@@ -3883,6 +4063,20 @@
             UI.notePid = p.pid;
             UI.modal = "note";
           } else UI.modal = back === "notes" ? "notes" : null;
+        },
+        fbStar: (d) => {
+          if (!STAR_IDS.includes(d.pillar)) return;
+          const key = playerHash(S.groupName || "", nm(d.p));
+          const prev = FB.stars;
+          const have = new Set((FB.stars && FB.stars[key]) || []);
+          if (have.has(d.pillar)) have.delete(d.pillar);
+          else have.add(d.pillar);
+          const next = STAR_IDS.filter((id) => have.has(id));
+          FB.stars = Object.assign({}, FB.stars);
+          if (next.length) FB.stars[key] = next;
+          else delete FB.stars[key];
+          if (!saveFB()) FB.stars = prev;
+          else toast((STAR_PILLARS.find((p) => p.id === d.pillar).name) + (have.has(d.pillar) ? " star on" : " star off"));
         },
         fbTag: (d) => {
           const action = fbAction(d.tag);
