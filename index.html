@@ -4210,6 +4210,7 @@
         exportJSON: () => {
           const o = clone(S);
           Object.values(o.T || {}).forEach((t) => (t.undo = []));
+          o.stars = cleanStars(FB.stars);
           saveFile(`fair-time-${stamp()}.json`, JSON.stringify(o, null, 2));
         },
         exportCSV: () => saveFile(`fair-time-minutes-${stamp()}.csv`, csvText()),
@@ -4359,8 +4360,19 @@
             if (o && o.kind === "fair-time-roster") throw new Error("That's a squad file. Use Import squad file.");
             if (!o || o.v !== 1 || !o.params || !o.players || Array.isArray(o.players)) throw new Error("That file isn't a Fair Time backup.");
             if (!confirm("Restoring replaces everything currently on this device. Continue?")) return;
+            const stars = o.stars;
+            delete o.stars;
             Object.values(o.T || {}).forEach((t) => (t.undo = t.undo || []));
             S = o;
+            if (stars && typeof stars === "object" && !Array.isArray(stars)) {
+              const incoming = cleanStars(stars);
+              const next = Object.assign({}, FB.stars);
+              Object.keys(incoming).forEach((key) => {
+                next[key] = STAR_IDS.filter((id) => (next[key] || []).includes(id) || incoming[key].includes(id));
+              });
+              FB.stars = next;
+              saveFB();
+            }
             UI.modal = null;
             UI.simCache = {};
             toast("Backup restored");
