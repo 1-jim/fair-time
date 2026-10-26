@@ -206,7 +206,7 @@ Buttons at the top of the Summary:
 
 - **Share summary** sends the text to WhatsApp, email or anywhere else.
 - **Export CSV** gives you the minutes as a spreadsheet.
-- **Backup (JSON)** saves the whole session. Use **Menu > Restore a backup** to load it on another phone.
+- **Backup (JSON)** saves the whole session, including the role-model stars. Use **Menu > Restore a backup** to load it on another phone. Stars already on that phone stay, and the stars in the file are added.
 
 ### Starting next week
 

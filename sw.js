@@ -1,5 +1,5 @@
 // Bump VERSION on every release so phones pick up the new app shell.
-const VERSION = "fairtime-v1.5.6";
+const VERSION = "fairtime-v1.5.7";
 const SHARE = "fairtime-share";
 const SHELL = [
   "./",

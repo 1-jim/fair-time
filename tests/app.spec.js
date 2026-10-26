@@ -792,6 +792,50 @@ test("a squad file is not a match backup, and a backup is not a squad file", asy
   await expect(page.locator(".fchip.going b")).toHaveText("26");
 });
 
+test("a backup carries role-model stars onto another phone", async ({ page }) => {
+  const fs = require("fs");
+  const os = require("os");
+  await importSquad(page);
+  const alfie = await page.evaluate(() => {
+    const key = playerHash(S.groupName, "Alfie Sample");
+    const other = playerHash("Other Group", "Pat Example");
+    FB.stars[key] = ["attack", "defence"];
+    FB.stars[other] = ["contest"];
+    saveFB();
+    return { key, other };
+  });
+
+  await page.evaluate(() => {
+    Object.defineProperty(Navigator.prototype, "canShare", { configurable: true, value: () => false });
+  });
+  await tap(page, "[data-a=modal][data-m=menu]");
+  const [backupDl] = await Promise.all([page.waitForEvent("download"), tap(page, "[data-a=exportJSON]")]);
+  const raw = fs.readFileSync(await backupDl.path(), "utf8");
+  const backup = JSON.parse(raw);
+  expect(backup.stars[alfie.key]).toEqual(["attack", "defence"]);
+  expect(backup.stars[alfie.other]).toEqual(["contest"]);
+  expect(backup.players[Object.keys(backup.players)[0]].stars).toBeUndefined();
+
+  backup.stars[alfie.key] = ["attack", "defence", "nope"];
+  const file = path.join(os.tmpdir(), "ft-backup-stars.json");
+  fs.writeFileSync(file, JSON.stringify(backup));
+
+  await page.evaluate((other) => {
+    FB.stars = { [other]: ["contest"] };
+    saveFB();
+  }, alfie.other);
+  page.once("dialog", (d) => d.accept());
+  await page.setInputFiles(".sheet input[data-ch=restoreFile]", file);
+  await expect(page.locator("#toast")).toContainText("Backup restored");
+  const after = await page.evaluate(() => ({
+    stars: FB.stars,
+    session: JSON.parse(localStorage.getItem("wimborne-fairtime-v1")),
+  }));
+  expect(after.stars[alfie.key]).toEqual(["attack", "defence"]);
+  expect(after.stars[alfie.other]).toEqual(["contest"]);
+  expect(after.session.stars).toBeUndefined();
+});
+
 test("android share target imports a squad file", async ({ page }) => {
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
