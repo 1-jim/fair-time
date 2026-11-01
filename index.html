@@ -3394,6 +3394,35 @@
             <button class="btn" data-a="closeModal">Close</button></div>`;
         } else if (m === "new") {
           inner = `<h2>Start a new session?</h2><div class="note bad">This clears the squad, teams and every minute on this device. Player notes and role-model stars are kept. It can't be undone.</div><div class="opts"><button class="btn" data-a="exportJSON">Back up first (JSON)</button><button class="btn warn" data-a="newConfirm">Clear and start new</button><button class="btn" data-a="closeModal">Keep this session</button></div>`;
+        } else if (m === "lock") {
+          const P = S.params;
+          const going = (tm) => tm.pids.filter((p) => S.players[p] && S.players[p].resp === "going").length;
+          const half = P.gameMins / P.halves;
+          const halfTxt = half % 1 ? String(Math.round(half * 10) / 10) : String(half);
+          const games = P.games === 1 ? "1 game per team." : P.games + " games per team.";
+          const time =
+            P.halves > 1
+              ? `${P.gameMins} minute games, split into two halves of ${halfTxt} minutes. ${games}`
+              : `${P.gameMins} minute games, played straight through. ${games}`;
+          const label = stratLabel(P.k, P.interval);
+          const planFor = (tm) => {
+            const g = going(tm);
+            if (g > P.onField) return label;
+            if (g === P.onField) return "No swaps, everyone plays";
+            return "No swaps, playing short";
+          };
+          const plans = S.teams.map(planFor);
+          const same = plans.length > 0 && plans.every((p) => p === plans[0]);
+          const lines = S.teams.map((tm) => `${esc(tm.name)}: ${tm.pids.length} players, ${going(tm)} confirmed`).join("<br>");
+          const short = S.teams.filter((tm) => going(tm) < P.onField);
+          const warn = short.length
+            ? `<div class="note bad">${short.map((tm) => `${esc(tm.name)} has only ${going(tm)} confirmed for ${P.onField} spots.`).join(" ")}</div>`
+            : "";
+          const plan =
+            S.teams.length > 1 && !same
+              ? `<div class="note bad">The swap plan is not the same for every team. ${S.teams.map((tm) => `${esc(tm.name)}: ${esc(planFor(tm))}`).join(". ")}.</div>`
+              : `<p>${esc(S.teams.length > 1 ? `Same swap plan for every team: ${plans[0]}.` : `Swap plan: ${plans[0] || label}.`)}</p>`;
+          inner = `<h2>Lock teams and start?</h2><p class="muted">This fixes the teams and opens the match. You can still move a player before a kick-off or at full-time.</p><p>${esc(time)}</p><p>${lines}</p>${plan}${warn}<div class="opts"><button class="btn primary" data-a="startConfirm">Lock and start</button><button class="btn" data-a="closeModal">Keep editing</button></div>`;
         } else if (m === "add") {
           inner = `<h2>Add a player</h2><p class="muted">They go on the bench with a fair share counted from now.</p><div class="add"><input id="addLate" placeholder="Name" autocomplete="off"></div><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="addLate">Add to ${esc(S.teams[S.active].name)}</button></div>`;
         } else if (m === "strat") {
@@ -3881,8 +3910,14 @@
           UI.teamSel = null;
         },
         startDay: () => {
+          if (!S.teams.length || S.started) return;
+          UI.modal = "lock";
+        },
+        startConfirm: () => {
+          if (!S.teams.length || S.started) return;
           UI.teamSel = null;
           UI.teamUndo = [];
+          UI.modal = null;
           startDay();
         },
         team: (d) => {
