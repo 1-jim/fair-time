@@ -26,6 +26,11 @@ async function importSquad(page) {
   await expect(page.locator("#toast")).toContainText("Imported 33 names, 26 going");
 }
 
+async function lockTeams(page) {
+  await tap(page, "[data-a=startDay]");
+  await tap(page, "[data-a=startConfirm]");
+}
+
 test("coach name can be set from the squad screen", async ({ page }) => {
   await expect(page.locator("[data-a=coachOpen]")).toHaveText("Set coach name");
   await tap(page, "[data-a=coachOpen]");
@@ -68,11 +73,36 @@ test("squad list stays alphabetical and filters combine", async ({ page }) => {
   await expect(page.locator(".sq-row")).toHaveCount(33);
 });
 
+test("locking the teams asks for confirmation", async ({ page }) => {
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  await tap(page, "[data-a=startDay]");
+  await expect(page.getByRole("heading", { name: "Lock teams and start?" })).toBeVisible();
+  await expect(page.getByText("16 minute games, split into two halves of 8 minutes. 3 games per team.")).toBeVisible();
+  const plan = await page.evaluate(() => stratLabel(S.params.k, S.params.interval));
+  await expect(page.getByText(`Same swap plan for every team: ${plan}.`)).toBeVisible();
+  await tap(page, "[data-a=closeModal]");
+  await page.evaluate(() => {
+    S.params.halves = 1;
+  });
+  await tap(page, "[data-a=startDay]");
+  await expect(page.getByText("16 minute games, played straight through. 3 games per team.")).toBeVisible();
+  await tap(page, "[data-a=closeModal]");
+  await page.evaluate(() => {
+    S.params.halves = 2;
+  });
+  await expect(page.locator("[data-a=startDay]")).toBeVisible();
+  await expect(page.locator("[data-a=kickoff]")).toHaveCount(0);
+  await tap(page, "[data-a=startDay]");
+  await tap(page, "[data-a=startConfirm]");
+  await expect(page.locator("[data-a=kickoff]")).toBeVisible();
+});
+
 test("runs a game: planned change, injury cover, summary", async ({ page }) => {
   await importSquad(page);
   await tap(page, "[data-a=toSetup]");
   await expect(page.locator("tr.sel")).toHaveCount(1);
-  await tap(page, "[data-a=startDay]");
+  await lockTeams(page);
   await expect(page.locator(".chips .chip.field, .chips .chip.off")).toHaveCount(9);
   await tap(page, "[data-a=kickoff]");
 
@@ -119,7 +149,7 @@ test("runs a game: planned change, injury cover, summary", async ({ page }) => {
 test("overtime shows on the clock and a forgotten half ends itself", async ({ page }) => {
   await importSquad(page);
   await tap(page, "[data-a=toSetup]");
-  await tap(page, "[data-a=startDay]");
+  await lockTeams(page);
   await tap(page, "[data-a=kickoff]");
   await expect(page.locator(".clocks .clock").first()).toContainText("Elapsed");
   await expect(page.locator(".clocks .clock.ot")).toContainText("Overtime");
@@ -158,7 +188,7 @@ test("overtime shows on the clock and a forgotten half ends itself", async ({ pa
 test("concussion cannot be cleared by the normal return option", async ({ page }) => {
   await importSquad(page);
   await tap(page, "[data-a=toSetup]");
-  await tap(page, "[data-a=startDay]");
+  await lockTeams(page);
   await tap(page, "[data-a=kickoff]");
   await tap(page, ".chips .chip.field, .chips .chip.off");
   await tap(page, "[data-s=concussed]");
@@ -170,7 +200,7 @@ test("concussion cannot be cleared by the normal return option", async ({ page }
 test("match controls are tappable where they are drawn", async ({ page }) => {
   await importSquad(page);
   await tap(page, "[data-a=toSetup]");
-  await tap(page, "[data-a=startDay]");
+  await lockTeams(page);
   await tap(page, "[data-a=kickoff]");
   // A tap lands on whatever is under the finger, so each button must be the top element at its own centre
   for (const a of ["pause", "subNow", "halftime"]) {
@@ -430,7 +460,7 @@ test("player notes stay after a new session and combine across coaches", async (
       saveFB();
     });
     await tap(page, "[data-a=toSetup]");
-    await tap(page, "[data-a=startDay]");
+    await lockTeams(page);
     await tap(page, ".chips .chip.field, .chips .chip.off");
     await expect(page.getByText("The collision and the line.")).toBeVisible();
     await expect(page.getByText("Shape and moving the ball.")).toBeVisible();
@@ -657,7 +687,7 @@ test("share team list sends the event, the teams and the plan", async ({ page })
   await tap(page, "[data-a=toSetup]");
   await page.locator('.team[data-ti="0"] input.inp').fill("Colts");
   await page.locator('.team[data-ti="0"] input.inp').evaluate((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
-  await tap(page, "[data-a=startDay]");
+  await lockTeams(page);
   await page.evaluate(() => {
     window.__shared = null;
     Object.defineProperty(Navigator.prototype, "share", {
@@ -929,7 +959,7 @@ test("a WhatsApp-style squad file replaces a game under way after a warning", as
   await page.reload();
   await importSquad(page);
   await tap(page, "[data-a=toSetup]");
-  await tap(page, "[data-a=startDay]");
+  await lockTeams(page);
   await expect(page.locator("[data-a=kickoff]")).toBeVisible();
 
   const roster = JSON.stringify({
@@ -987,7 +1017,7 @@ test("a shared spreadsheet does not replace a game under way", async ({ page }) 
   await page.reload();
   await importSquad(page);
   await tap(page, "[data-a=toSetup]");
-  await tap(page, "[data-a=startDay]");
+  await lockTeams(page);
   await expect(page.locator("[data-a=kickoff]")).toBeVisible();
 
   const bytes = [...require("fs").readFileSync(FIXTURE)];
@@ -1023,7 +1053,7 @@ test("import squad file from the menu replaces a game under way after a warning"
   );
   await importSquad(page);
   await tap(page, "[data-a=toSetup]");
-  await tap(page, "[data-a=startDay]");
+  await lockTeams(page);
   await tap(page, "[data-a=modal][data-m=menu]");
   await expect(page.locator(".sheet input[data-ch=rosterFile]")).toBeAttached();
 

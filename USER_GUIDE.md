@@ -123,7 +123,7 @@ Start with **Shuffle** or **First team**, then fine-tune by hand. **Shuffle** is
 
 Each team shows how many players it has, how many have confirmed, and the bench size, so you can see the balance as you go. Names stay in alphabetical order within each team.
 
-When the teams look right, tap **Lock teams and start**. Teams are fixed from then on, apart from moving a player between teams before a kick-off or at full-time on the Match screen.
+When the teams look right, tap **Lock teams and start**. Fair Time asks you to confirm. The pop-up shows the game length, and, when you play halves, how that time is split. It also shows the swap plan, and whether every team is using that same plan. If a team is short of confirmed players, that is shown too. Tap **Lock and start** to fix the teams, or **Keep editing** to go back. Teams are fixed from then on, apart from moving a player between teams before a kick-off or at full-time on the Match screen.
 
 **Share team list** (on the Match screen, and in the menu) sends the event title, each team and the plan as a message for WhatsApp or anywhere else. Another coach can paste that message into **Paste names**. That replaces their squad list and keeps their event title and date. It does not bring across the teams or the settings. Use **Export squad file** when the other coach needs those too.
 
