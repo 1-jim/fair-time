@@ -1368,6 +1368,8 @@
         { id: "contest", letter: "C", name: "Contest" },
       ];
       const STAR_IDS = STAR_PILLARS.map((p) => p.id);
+      // Defence and contest count double attack when a split uses the stars.
+      const STAR_WEIGHT = { attack: 1, defence: 2, contest: 2 };
       const $ = (s) => document.querySelector(s);
       const uid = () => Math.random().toString(36).slice(2, 10);
       const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -1415,6 +1417,7 @@
             interval: 4,
             breakReshuffle: true,
             outlier: 1,
+            training: false,
           },
           players: {},
           order: [],
@@ -1431,7 +1434,9 @@
         try {
           const r = localStorage.getItem(KEY);
           const o = r ? JSON.parse(r) : null;
-          return o && o.v === 1 ? o : null;
+          if (!o || o.v !== 1) return null;
+          if (o.params && typeof o.params.training !== "boolean") o.params.training = false;
+          return o;
         } catch (e) {
           return null;
         }
@@ -1442,6 +1447,7 @@
         } catch (e) {}
       }
       let S = load() || fresh();
+      linkTraining();
       let FB = loadFB();
       const UI = { sheet: null, modal: null, simCache: {}, strat: null, squadFilter: [], squadKeep: [], teamSel: null, teamUndo: [], coachBack: "" };
       let DL = null;
@@ -1526,31 +1532,43 @@
           .sort((a, b) => nm(a).localeCompare(nm(b)));
         return { F, B, O };
       }
+      function slotsOf(t) {
+        if (t && t.spots) return t.spots;
+        if (t && t.training) return S.params.onField * Math.max(1, S.teams.length);
+        return S.params.onField;
+      }
       function planPairs(t, k) {
         const { F, B } = lists(t);
         const n = Math.min(k, F.length, B.length);
         const out = [];
         for (let j = 0; j < n; j++) {
-          out.push({ off: F[j], on: B[j], ben: dd(t, B[j]) > dd(t, F[j]) });
+          const pair = { off: F[j], on: B[j], ben: dd(t, B[j]) > dd(t, F[j]) };
+          if (t.training && pair.off) pair.side = t.ps[pair.off].side;
+          out.push(pair);
         }
         return out;
       }
-      function breakPairs(t) {
-        const { F, B } = lists(t);
+      function breakCore(t, ids, slotsN, side) {
+        const avail = ids.filter((i) => t.ps[i] && (t.ps[i].st === "field" || t.ps[i].st === "bench"));
+        const F = avail
+          .filter((i) => t.ps[i].st === "field")
+          .sort((a, b) => dd(t, a) - dd(t, b) || t.ps[a].since - t.ps[b].since || nm(a).localeCompare(nm(b)));
         const inF = new Set(F);
-        const pool = [...F, ...B].sort(
+        const pool = avail.slice().sort(
           (a, b) =>
             dd(t, b) - dd(t, a) ||
             (inF.has(a) ? 1 : 0) - (inF.has(b) ? 1 : 0) ||
             t.ps[a].since - t.ps[b].since ||
             nm(a).localeCompare(nm(b)),
         );
-        const want = new Set(pool.slice(0, S.params.onField));
+        const want = new Set(pool.slice(0, slotsN));
         const ons = pool.filter((i) => want.has(i) && !inF.has(i));
         const offs = F.filter((i) => !want.has(i));
         let pairs = [];
         for (let j = 0; j < Math.max(ons.length, offs.length); j++) {
-          pairs.push({ off: offs[j] || null, on: ons[j] || null, ben: true });
+          const pair = { off: offs[j] || null, on: ons[j] || null, ben: true };
+          if (side && pair.on) pair.side = side;
+          pairs.push(pair);
         }
         if (!S.params.breakReshuffle) {
           const swaps = pairs.filter((p) => p.off && p.on).slice(0, t.k);
@@ -1558,16 +1576,118 @@
         }
         return pairs;
       }
+      function breakPairs(t) {
+        if (t && t.training) return breakPairsTraining(t);
+        return breakCore(t, Object.keys(t.ps), slotsOf(t), null);
+      }
+      // Starting lineup keeps each side's own players. Later breaks pick the
+      // players who are furthest behind across the whole squad, then balance the sides.
+      function breakPairsTraining(t) {
+        const per = S.params.onField;
+        const fresh = Object.values(t.ps).every((p) => !p.on && !p.ent);
+        if (fresh) {
+          return S.teams.flatMap((tm) => breakCore(t, Object.keys(t.ps).filter((i) => t.ps[i].side === tm.id), per, tm.id));
+        }
+        const ids = Object.keys(t.ps);
+        const avail = ids.filter((i) => t.ps[i] && (t.ps[i].st === "field" || t.ps[i].st === "bench"));
+        const F = avail
+          .filter((i) => t.ps[i].st === "field")
+          .sort((a, b) => dd(t, a) - dd(t, b) || t.ps[a].since - t.ps[b].since || nm(a).localeCompare(nm(b)));
+        const inF = new Set(F);
+        const pool = avail.slice().sort(
+          (a, b) =>
+            dd(t, b) - dd(t, a) ||
+            (inF.has(a) ? 1 : 0) - (inF.has(b) ? 1 : 0) ||
+            t.ps[a].since - t.ps[b].since ||
+            nm(a).localeCompare(nm(b)),
+        );
+        const sides = S.teams.map((tm) => tm.id);
+        const chosen = pool.slice(0, per * sides.length);
+        const want = new Set(chosen);
+        const open = {};
+        sides.forEach((s) => (open[s] = per));
+        const target = {};
+        chosen.forEach((i) => {
+          const s = t.ps[i].side;
+          if (s && open[s] > 0) {
+            target[i] = s;
+            open[s]--;
+          }
+        });
+        chosen.forEach((i) => {
+          if (target[i]) return;
+          let best = null;
+          sides.forEach((s) => {
+            if (open[s] <= 0) return;
+            if (best == null || open[s] > open[best]) best = s;
+          });
+          if (best == null) best = sides[0];
+          target[i] = best;
+          if (open[best] > 0) open[best]--;
+        });
+        const ons = chosen.filter((i) => !inF.has(i));
+        const offs = F.filter((i) => !want.has(i));
+        let pairs = [];
+        for (let j = 0; j < Math.max(ons.length, offs.length); j++) {
+          const on = ons[j] || null;
+          pairs.push({ off: offs[j] || null, on, ben: true, side: on ? target[on] : undefined });
+        }
+        if (!S.params.breakReshuffle) {
+          const swaps = pairs.filter((p) => p.off && p.on).slice(0, t.k);
+          return swaps.concat(pairs.filter((p) => !p.off || !p.on));
+        }
+        chosen.forEach((i) => {
+          if (inF.has(i) && target[i] && t.ps[i].side !== target[i]) pairs.push({ stay: i, side: target[i], ben: true });
+        });
+        return pairs;
+      }
       function fillPairs(t) {
+        if (t && t.training) {
+          const { F, B } = lists(t);
+          const per = S.params.onField;
+          const out = [];
+          const used = new Set();
+          const have = (id) => F.filter((i) => t.ps[i].side === id).length + out.filter((p) => p.side === id).length;
+          while (out.length < B.length) {
+            let side = null;
+            S.teams.forEach((tm) => {
+              if (have(tm.id) >= per) return;
+              if (!side || have(tm.id) < have(side.id)) side = tm;
+            });
+            if (!side) break;
+            const on = B.find((i) => !used.has(i));
+            if (!on) break;
+            used.add(on);
+            out.push({ off: null, on, ben: true, side: side.id });
+          }
+          return out;
+        }
         const { F, B } = lists(t);
-        const miss = S.params.onField - F.length;
+        const miss = slotsOf(t) - F.length;
         return miss > 0 ? B.slice(0, miss).map((on) => ({ off: null, on, ben: true })) : [];
       }
       function apply(t, pairs, type) {
-        pairs.forEach(({ off, on }) => {
+        pairs.forEach((pair) => {
+          const { off, on, side, stay } = pair;
+          if (stay) {
+            if (side && t.ps[stay]) t.ps[stay].side = side;
+            return;
+          }
           if (off) setSt(t, off, "bench");
-          if (on) setSt(t, on, "field");
+          if (on) {
+            if (side && t.ps[on]) t.ps[on].side = side;
+            setSt(t, on, "field");
+          }
           logEv(t, type, { off, on });
+        });
+      }
+      function linkTraining() {
+        if (!S.params || !S.params.training || !S.started || !S.teams || !S.teams.length || !S.T) return;
+        const t = S.T[S.teams[0].id];
+        if (!t || !t.ps) return;
+        t.training = true;
+        S.teams.forEach((tm) => {
+          S.T[tm.id] = t;
         });
       }
       function offsets(iv) {
@@ -1596,16 +1716,18 @@
           return planPairs(t, t.k).map((p) => ({ ...p, chk: p.ben !== tog.includes(p.on) }));
         }
         if (t.callType === "break") {
-          return breakPairs(t).map((p) => ({ ...p, chk: !tog.includes(p.on || p.off) }));
+          return breakPairs(t)
+            .filter((p) => !p.stay)
+            .map((p) => ({ ...p, chk: !tog.includes(p.on || p.off) }));
         }
         return [];
       }
 
       /* ---------- Strategy simulator ---------- */
-      function simulate(n, k, iv) {
+      function simulate(n, k, iv, spots) {
         const P = S.params;
         const h = H();
-        const t = { g: 0, stage: "sim", acc: 0, res: null, last: 0, base: 0, sim: 0, ps: {}, k, interval: iv, log: [] };
+        const t = { g: 0, stage: "sim", acc: 0, res: null, last: 0, base: 0, sim: 0, ps: {}, k, interval: iv, log: [], spots: spots || P.onField };
         for (let i = 0; i < n; i++) t.ps["~" + String(i).padStart(2, "0")] = newPS("bench");
         let stops = 0;
         for (let g = 0; g < P.games; g++) {
@@ -1637,11 +1759,12 @@
         const mb = Math.max(...ps.map((p) => Math.max(p.maxBench, p.st === "bench" ? end - p.since : 0)));
         return { spread: Math.max(...on) - Math.min(...on), stops, maxBench: mb };
       }
-      function strategies(n) {
+      function strategies(n, training) {
         const P = S.params;
-        const bench = n - P.onField;
+        const spots = training ? P.onField * Math.max(1, P.teams) : P.onField;
+        const bench = n - spots;
         if (bench <= 0) return [];
-        const key = [n, P.onField, P.gameMins, P.games, P.halves, P.breakReshuffle].join("|");
+        const key = [n, spots, P.gameMins, P.games, P.halves, P.breakReshuffle, training ? 1 : 0].join("|");
         if (UI.simCache[key]) return UI.simCache[key];
         const hm = P.gameMins / P.halves;
         const ivs = [...new Set([2, 3, 4, 5, 6, 8, hm / 2, hm / 3, hm / 4].map((x) => Math.round(x * 60) / 60))].filter(
@@ -1649,9 +1772,9 @@
         );
         const out = [];
         for (let k = 1; k <= Math.min(bench, 6); k++) {
-          for (const iv of ivs) out.push({ k, iv, ...simulate(n, k, iv) });
+          for (const iv of ivs) out.push({ k, iv, ...simulate(n, k, iv, spots) });
           if (!P.breakReshuffle || k === Math.min(bench, 6)) {
-            out.push({ k: P.breakReshuffle ? bench : k, iv: 0, ...simulate(n, P.breakReshuffle ? bench : k, 0) });
+            out.push({ k: P.breakReshuffle ? bench : k, iv: 0, ...simulate(n, P.breakReshuffle ? bench : k, 0, spots) });
           }
         }
         out.forEach((r) => {
@@ -2052,6 +2175,28 @@
       function starCount(id) {
         return starsFor(nm(id)).length;
       }
+      function starWeight(id) {
+        return starsFor(nm(id)).reduce((sum, pill) => sum + (STAR_WEIGHT[pill] || 0), 0);
+      }
+      function sideLabel(t, pid) {
+        const id = t.ps[pid] && t.ps[pid].side;
+        const tm = S.teams.find((x) => x.id === id);
+        return tm ? tm.name : "";
+      }
+      function trainingSpot(t, pid) {
+        const per = S.params.onField;
+        const counts = {};
+        S.teams.forEach((tm) => (counts[tm.id] = 0));
+        Object.keys(t.ps).forEach((i) => {
+          if (i !== pid && t.ps[i].st === "field" && counts[t.ps[i].side] != null) counts[t.ps[i].side]++;
+        });
+        let side = t.ps[pid].side;
+        if ((counts[side] || 0) >= per) {
+          const short = S.teams.find((tm) => (counts[tm.id] || 0) < per);
+          if (short) side = short.id;
+        }
+        return side;
+      }
       function starSvg(letter) {
         return `<svg class="starsvg" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.2 14.9,8.2 22.4,8.8 16.7,13.8 18.4,21.2 12,17.2 5.6,21.2 7.3,13.8 1.6,8.8 9.1,8.2" fill="currentColor"/><text x="12" y="14.2" text-anchor="middle" font-size="8" font-weight="700" fill="#3a2800">${letter}</text></svg>`;
       }
@@ -2324,36 +2469,43 @@
         }));
         const going = pool.filter((id) => S.players[id].resp === "going");
         const maybe = pool.filter((id) => S.players[id].resp === "maybe");
-        if (mode === "az") {
-          const byName = (ids) => ids.slice().sort((a, b) => nm(a).localeCompare(nm(b)));
-          [...byName(going), ...byName(maybe)].forEach((id, i) => {
-            const r = Math.floor(i / n);
-            const c = i % n;
-            S.teams[r % 2 ? n - 1 - c : c].pids.push(id);
-          });
-          return;
-        }
-        if (mode === "rated") {
+        if (mode === "rated" || mode === "balanced") {
           const ranked = pool.slice();
           for (let i = ranked.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [ranked[i], ranked[j]] = [ranked[j], ranked[i]];
           }
           ranked.sort((a, b) => {
-            const ds = starCount(b) - starCount(a);
+            const ds = starWeight(b) - starWeight(a);
             if (ds) return ds;
             const ag = S.players[a].resp === "going" ? 0 : 1;
             const bg = S.players[b].resp === "going" ? 0 : 1;
             return ag - bg;
           });
-          const base = Math.floor(ranked.length / n);
-          let extra = ranked.length % n;
-          let at = 0;
-          for (let t = 0; t < n; t++) {
-            const take = base + (extra > 0 ? 1 : 0);
-            if (extra > 0) extra--;
-            for (let k = 0; k < take; k++) S.teams[t].pids.push(ranked[at++]);
+          if (mode === "rated") {
+            const base = Math.floor(ranked.length / n);
+            let extra = ranked.length % n;
+            let at = 0;
+            for (let t = 0; t < n; t++) {
+              const take = base + (extra > 0 ? 1 : 0);
+              if (extra > 0) extra--;
+              for (let k = 0; k < take; k++) S.teams[t].pids.push(ranked[at++]);
+            }
+            return;
           }
+          ranked.forEach((id) => {
+            let best = 0;
+            let bestKey = null;
+            for (let i = 0; i < n; i++) {
+              const tm = S.teams[i];
+              const key = [tm.pids.reduce((sum, pid) => sum + starWeight(pid), 0), tm.pids.length];
+              if (!bestKey || key[0] < bestKey[0] || (key[0] === bestKey[0] && key[1] < bestKey[1])) {
+                bestKey = key;
+                best = i;
+              }
+            }
+            S.teams[best].pids.push(id);
+          });
           return;
         }
         const place = (id) => {
@@ -2367,7 +2519,7 @@
                 if (theirs.includes(pill)) overlap++;
               });
             });
-            return [overlap, tm.pids.reduce((sum, pid) => sum + starCount(pid), 0), tm.pids.length];
+            return [overlap, tm.pids.reduce((sum, pid) => sum + starWeight(pid), 0), tm.pids.length];
           };
           let bestKey = null;
           let ties = [];
@@ -2393,7 +2545,7 @@
             const j = Math.floor(Math.random() * (i + 1));
             [copy[i], copy[j]] = [copy[j], copy[i]];
           }
-          const models = copy.filter((id) => starCount(id) > 0).sort((a, b) => starCount(b) - starCount(a));
+          const models = copy.filter((id) => starWeight(id) > 0).sort((a, b) => starWeight(b) - starWeight(a));
           const rest = copy.filter((id) => starCount(id) === 0);
           models.forEach(place);
           rest.forEach(place);
@@ -2424,10 +2576,14 @@
           S.teams[best].pids.push(id);
         });
       }
+      function goingOnTeams() {
+        return S.teams.reduce((sum, tm) => sum + tm.pids.filter((p) => S.players[p] && S.players[p].resp === "going").length, 0);
+      }
       function applyBestPlan() {
         if (S.started || S.stratPicked || !S.teams.length) return;
-        const sizes = S.teams.map((tm) => tm.pids.filter((p) => S.players[p] && S.players[p].resp === "going").length);
-        const best = strategies(Math.max(...sizes))[0];
+        const best = S.params.training
+          ? strategies(goingOnTeams(), true)[0]
+          : strategies(Math.max(...S.teams.map((tm) => tm.pids.filter((p) => S.players[p] && S.players[p].resp === "going").length)))[0];
         if (!best) return;
         S.params.k = best.k;
         S.params.interval = best.iv;
@@ -2446,13 +2602,10 @@
           if (tm) tm.name = el.value.trim() || "Team";
         });
       }
-      function startDay() {
-        S.T = {};
-        S.teams.forEach((tm) => {
-          const ps = {};
-          tm.pids.forEach((pid) => (ps[pid] = newPS(S.players[pid].resp === "maybe" ? "late" : "bench")));
-          const t = {
-            id: tm.id,
+      function blankMatch(id, ps, extra) {
+        return Object.assign(
+          {
+            id,
             g: 0,
             stage: "pre",
             half: 1,
@@ -2474,10 +2627,35 @@
             ot: false,
             otPing: 0,
             otStopAt: 0,
-          };
+          },
+          extra || {},
+        );
+      }
+      function startDay() {
+        S.T = {};
+        if (S.params.training) {
+          const ps = {};
+          S.teams.forEach((tm) => {
+            tm.pids.forEach((pid) => {
+              const p = newPS(S.players[pid].resp === "maybe" ? "late" : "bench");
+              p.side = tm.id;
+              ps[pid] = p;
+            });
+          });
+          const t = blankMatch(S.teams[0].id, ps, { training: true });
           apply(t, breakPairs(t), "lineup");
-          S.T[tm.id] = t;
-        });
+          S.teams.forEach((tm) => {
+            S.T[tm.id] = t;
+          });
+        } else {
+          S.teams.forEach((tm) => {
+            const ps = {};
+            tm.pids.forEach((pid) => (ps[pid] = newPS(S.players[pid].resp === "maybe" ? "late" : "bench")));
+            const t = blankMatch(tm.id, ps);
+            apply(t, breakPairs(t), "lineup");
+            S.T[tm.id] = t;
+          });
+        }
         S.started = true;
         S.view = "game";
         S.active = 0;
@@ -2562,6 +2740,23 @@
         }, 500);
       }
       const stamp = () => new Date(S.created).toISOString().slice(0, 10);
+      function matchReports() {
+        if (S.params.training && S.started && S.teams.length) {
+          const t = S.T[S.teams[0].id];
+          if (t && t.training) {
+            settle(t);
+            return [{ t, title: "Whole squad", ids: Object.keys(t.ps).filter((p) => t.ps[p]) }];
+          }
+        }
+        const out = [];
+        S.teams.forEach((tm) => {
+          const t = S.T[tm.id];
+          if (!t) return;
+          settle(t);
+          out.push({ t, title: tm.name, ids: tm.pids.filter((p) => t.ps[p]) });
+        });
+        return out;
+      }
       function csvText() {
         const P = S.params;
         const q = (v) => '"' + String(v).replace(/"/g, '""') + '"';
@@ -2570,24 +2765,20 @@
         for (let i = 0; i < P.games; i++) head.push(`Game ${i + 1} (min)`);
         head.push("Total (min)", "Fair share (min)", "Difference (min)", "Final status");
         const rows = [head];
-        S.teams.forEach((tm) => {
-          const t = S.T[tm.id];
-          if (!t) return;
-          tm.pids.forEach((pid) => {
+        matchReports().forEach(({ t, title, ids }) => {
+          ids.forEach((pid) => {
             const p = t.ps[pid];
             if (!p) return;
-            rows.push([tm.name, nm(pid), ...p.gOn.map(m), m(p.on), m(p.ent), m(p.on - p.ent), ST_LABEL[p.st]]);
+            rows.push([t.training ? sideLabel(t, pid) : title, nm(pid), ...p.gOn.map(m), m(p.on), m(p.ent), m(p.on - p.ent), ST_LABEL[p.st]]);
           });
         });
         return rows.map((r) => r.map(q).join(",")).join("\n");
       }
       function summaryText() {
         const out = [S.eventName || "Match day", S.eventDate].filter(Boolean);
-        S.teams.forEach((tm) => {
-          const t = S.T[tm.id];
-          if (!t) return;
-          out.push("", tm.name + ":");
-          summaryLines(t, tm).forEach((l) => out.push("- " + l.txt));
+        matchReports().forEach(({ t, title, ids }) => {
+          out.push("", title + ":");
+          summaryLines(t, { pids: ids, name: title }).forEach((l) => out.push("- " + l.txt));
         });
         return out.join("\n");
       }
@@ -2608,6 +2799,7 @@
             interval: S.params.interval,
             breakReshuffle: !!S.params.breakReshuffle,
             outlier: S.params.outlier,
+            training: !!S.params.training,
           },
           stratPicked: !!S.stratPicked,
           players: S.order
@@ -2662,7 +2854,8 @@
         );
         const halves = P.halves === 1 ? "1 half" : P.halves + " halves";
         const games = P.games === 1 ? "1 game" : P.games + " games";
-        lines.push(P.onField + " on the pitch, " + P.gameMins + " minute games, " + halves + ", " + games + ".");
+        if (P.training) lines.push("Training only. The sides play each other.");
+        lines.push(P.onField + (P.training ? " per side, " : " on the pitch, ") + P.gameMins + " minute games, " + halves + ", " + games + ".");
         lines.push(stratLabel(P.k, P.interval) + ".");
         return lines.join("\n").replace(/\n+$/, "");
       }
@@ -2743,6 +2936,7 @@
             next.params[k] = k === "outlier" ? Math.round(v * 2) / 2 : v;
           });
           if (typeof o.params.breakReshuffle === "boolean") next.params.breakReshuffle = o.params.breakReshuffle;
+          if (typeof o.params.training === "boolean") next.params.training = o.params.training;
           const k = +o.params.k;
           const iv = +o.params.interval;
           if (Number.isFinite(k)) next.params.k = Math.min(12, Math.max(1, Math.round(k)));
@@ -3007,10 +3201,12 @@
         return `<div class="stp"><span>${label}</span><div class="ctl">${lock ? "" : `<button class="sq" data-a="param" data-k="${k}" data-s="-1" aria-label="Fewer">−</button>`}<b>${P[k]}${sfx || ""}</b>${lock ? "" : `<button class="sq" data-a="param" data-k="${k}" data-s="1" aria-label="More">+</button>`}</div></div>`;
       }
       function stratTable(n, curK, curIv, action) {
-        const rows = strategies(n);
+        const training = !!S.params.training;
+        const rows = strategies(n, training);
         const P = S.params;
-        if (n - P.onField <= 0) {
-          return `<p class="muted">${n} players for ${P.onField} spots: ${n < P.onField ? "you'll play short" : "everyone plays the whole time"}, so no rotation is needed.</p>`;
+        const spots = training ? P.onField * Math.max(1, P.teams) : P.onField;
+        if (n - spots <= 0) {
+          return `<p class="muted">${n} players for ${spots} spots: ${n < spots ? "you'll play short" : "everyone plays the whole time"}, so no rotation is needed.</p>`;
         }
         let show = rows.slice(0, 5);
         const cur = rows.find((r) => r.k === curK && r.iv === curIv);
@@ -3029,27 +3225,33 @@
         let h = `<h2>Setup</h2>${eventTitle(false)}`;
         if (lock) h += `<div class="note">Match day is under way. These settings are locked; change the substitution plan per team from the Match screen.</div>`;
         h += `<div class="panel">
-          ${stepper("Teams", "teams", "", lock)}
-          ${stepper("Players on the pitch", "onField", "", lock)}
+          ${stepper(P.training ? "Sides" : "Teams", "teams", "", lock)}
+          ${stepper(P.training ? "Players per side" : "Players on the pitch", "onField", "", lock)}
           ${stepper("Minutes per game", "gameMins", "", lock)}
-          ${stepper("Games per team", "games", "", lock)}
+          ${stepper(P.training ? "Games" : "Games per team", "games", "", lock)}
           ${stepper("Halves per game", "halves", "", lock)}
           <div class="stp"><span>Full reshuffle at half-time and between games</span><button class="switch" aria-pressed="${P.breakReshuffle}" data-a="toggleBreak" ${lock ? "disabled" : ""} aria-label="Full reshuffle at breaks"></button></div>
+          <div class="stp"><span>Training only</span><button class="switch" aria-pressed="${P.training}" data-a="toggleTraining" ${lock ? "disabled" : ""} aria-label="Training only"></button></div>
+          <p class="small muted">${P.training ? "The squad plays itself on one clock. Fair time is shared across the sides, and substitutions happen together." : "Each team plays the opposition on its own clock."}</p>
           ${stepper("Flag anyone this far from fair share (min)", "outlier", "", false)}
         </div>`;
         const sizes = [...new Set(S.teams.map((tm) => tm.pids.filter((p) => S.players[p].resp === "going").length))];
         h += `<h3>Substitution plan</h3>`;
         if (!lock) {
-          h += `<p class="muted">Pick a plan. Each one was run through a full match day to see how evenly it shares time.</p>`;
-          sizes.forEach((n) => (h += stratTable(n, P.k, P.interval, "pickStrat")));
+          h += P.training
+            ? `<p class="muted">Pick a plan. Each one was run for the whole squad, with every side on the pitch, to see how evenly it shares time.</p>`
+            : `<p class="muted">Pick a plan. Each one was run through a full match day to see how evenly it shares time.</p>`;
+          if (P.training) h += stratTable(goingOnTeams(), P.k, P.interval, "pickStrat");
+          else sizes.forEach((n) => (h += stratTable(n, P.k, P.interval, "pickStrat")));
           h += `<p>Selected: <b>${stratLabel(P.k, P.interval)}</b></p>`;
         } else {
           h += `<p>Starting plan: <b>${stratLabel(P.k, P.interval)}</b></p>`;
         }
-        h += `<h3>Teams</h3>`;
+        h += `<h3>${P.training ? "Sides" : "Teams"}</h3>`;
         if (!lock) {
-          h += `<div class="tbar"><button class="btn" data-a="split" data-m="shuffle">Shuffle</button><button class="btn" data-a="split" data-m="rated">First team</button><button class="btn" data-a="split" data-m="az">Split A to Z</button><button class="btn" data-a="teamUndo" ${UI.teamUndo.length ? "" : "disabled"}>Undo</button></div>
-            <p class="small muted">Shuffle spreads role models across the teams. First team puts the players with the most stars on team A. Drag a name to another team, or drop it on a player to swap them. On a phone, press and hold first. Or tap a name, then tap where it goes. Amber names haven't confirmed yet.</p>`;
+          const group = P.training ? "side" : "team";
+          h += `<div class="tbar"><button class="btn" data-a="split" data-m="shuffle">Shuffle</button><button class="btn" data-a="split" data-m="rated">First team</button><button class="btn" data-a="split" data-m="balanced">Balanced</button><button class="btn" data-a="teamUndo" ${UI.teamUndo.length ? "" : "disabled"}>Undo</button></div>
+            <p class="small muted">Shuffle spreads role models. First team puts the strongest players on team A. Defence and contest count for more than attack. Balanced shares that strength across the ${group}s. Drag a name to another ${group}, or drop it on a player to swap them. On a phone, press and hold first. Or tap a name, then tap where it goes. Amber names haven't confirmed yet.</p>`;
         }
         const selTeam = UI.teamSel ? S.teams.findIndex((x) => x.pids.includes(UI.teamSel)) : -1;
         h += `<div class="teams ${S.teams.length > 2 ? "many" : ""}" style="--n:${S.teams.length}">${S.teams
@@ -3119,7 +3321,8 @@
       function chip(t, pid, cls, tag) {
         const p = t.ps[pid];
         const out = !["field", "bench"].includes(p.st);
-        return `<button class="chip ${cls}" data-a="player" data-t="${t.id}" data-p="${pid}">
+        const tid = t.training && p.side ? p.side : t.id;
+        return `<button class="chip ${cls}" data-a="player" data-t="${tid}" data-p="${pid}">
           <span class="nm"><span class="nmline">${esc(nm(pid))}${starHtml(nm(pid))}</span></span>${tag ? `<span class="tag">${tag}</span>` : ""}
           <span class="t"><span data-live="pm:${t.id}:${pid}">${fmt(p.on)}</span><small>${out ? esc(ST_LABEL[p.st]) : `<span data-live="df:${t.id}:${pid}">${fmtS(p.on - p.ent)}</span>`}</small></span></button>`;
       }
@@ -3129,7 +3332,7 @@
         const t = S.T[tm.id];
         const L = lists(t);
         let h = "";
-        if (S.teams.length > 1) {
+        if (S.teams.length > 1 && !t.training) {
           h += `<div class="tt">${S.teams
             .map((x, i) => `<button data-a="team" data-i="${i}" ${i === S.active ? 'aria-current="true"' : ""}>${esc(x.name)}${S.T[x.id].callType === "plan" && i !== S.active ? '<span class="dot" aria-label="Change due"></span>' : ""}</button>`)
             .join("")}</div>`;
@@ -3175,18 +3378,23 @@
           <div class="due" data-live="due:${t.id}">${dueText(t)}</div>
           <div class="muted" style="color:rgba(255,255,255,.8)">${stratLabel(t.k, t.interval)}</div>
           <div class="row">${ctr}</div></section>`;
+        if (t.training) h += `<p class="small muted">Training. The sides play each other. Fair time is shared, and changes happen together.</p>`;
         if (ended) h += `<div class="note bad">${esc(autoEndText(ended))}</div>`;
         else if (ot) h += `<div class="note bad">Overtime <b data-live="overnote:${t.id}">${fmt(over)}</b>. Tap ${whistle} on the whistle.</div>`;
         const fill = fillPairs(t);
         if (["running", "paused", "pre", "ht"].includes(t.stage)) {
           if (fill.length) {
             h += `<div class="note bad">Playing short. Bring on ${joinList(fill.map((p) => esc(nm(p.on))))}. <div style="margin-top:8px"><button class="btn warn" data-a="fillNow">Bring on now</button></div></div>`;
+          } else if (t.training) {
+            const short = S.teams.filter((tm) => L.F.filter((i) => t.ps[i].side === tm.id).length < P.onField);
+            if (short.length && !L.B.length) h += `<div class="note bad">Playing short on ${short.map((tm) => esc(tm.name)).join(" and ")}.</div>`;
           } else if (L.F.length < P.onField) {
             h += `<div class="note bad">Playing with ${L.F.length} and nobody on the bench.</div>`;
           }
         }
         if (t.stage === "ft") {
-          h += `<h3>Game ${t.g + 1} recap</h3><ul class="lines">${summaryLines(t, tm, t.g)
+          const recap = t.training ? { pids: Object.keys(t.ps) } : tm;
+          h += `<h3>Game ${t.g + 1} recap</h3><ul class="lines">${summaryLines(t, recap, t.g)
             .map((l) => `<li class="${l.k}">${esc(l.txt)}</li>`)
             .join("")}</ul>`;
         }
@@ -3208,13 +3416,22 @@
         const onN = new Set(plan.map((p) => p.on));
         if (plan.length) {
           h += `<h3>${planHead} <span class="n">${plan.length} swap${plan.length > 1 ? "s" : ""}</span></h3><div class="swaps">${plan
-            .map((p) => `<div class="swap">${chip(t, p.on, "next slim", "")}<span class="arr">${ARROW}</span>${chip(t, p.off, "off slim", "")}</div>`)
+            .map((p) => `<div class="swap">${chip(t, p.on, "next slim", "")}<span class="arr">${ARROW}</span>${chip(t, p.off, "off slim", t.training ? sideLabel(t, p.off) : "")}</div>`)
             .join("")}</div>`;
         }
-        h += `<h3>On the pitch <span class="n">${L.F.length} of ${P.onField}</span></h3><div class="chips">${L.F.map((pid) =>
-          offN.has(pid) ? chip(t, pid, "off", "Off next") : chip(t, pid, "field", ""),
-        ).join("")}</div>`;
-        h += `<h3>Bench <span class="n">${L.B.length}</span></h3>${L.B.length ? `<div class="chips">${L.B.map((pid) => (onN.has(pid) ? chip(t, pid, "next", "On next") : chip(t, pid, "bench", ""))).join("")}</div>` : `<p class="muted">Nobody on the bench.</p>`}`;
+        if (t.training) {
+          S.teams.forEach((side) => {
+            const on = L.F.filter((pid) => t.ps[pid].side === side.id);
+            h += `<h3>${esc(side.name)} <span class="n">${on.length} of ${P.onField}</span></h3><div class="chips">${on
+              .map((pid) => (offN.has(pid) ? chip(t, pid, "off", "Off next") : chip(t, pid, "field", "")))
+              .join("")}</div>`;
+          });
+        } else {
+          h += `<h3>On the pitch <span class="n">${L.F.length} of ${P.onField}</span></h3><div class="chips">${L.F.map((pid) =>
+            offN.has(pid) ? chip(t, pid, "off", "Off next") : chip(t, pid, "field", ""),
+          ).join("")}</div>`;
+        }
+        h += `<h3>${t.training ? "Shared bench" : "Bench"} <span class="n">${L.B.length}</span></h3>${L.B.length ? `<div class="chips">${L.B.map((pid) => (onN.has(pid) ? chip(t, pid, "next", "On next") : chip(t, pid, "bench", ""))).join("")}</div>` : `<p class="muted">Nobody on the bench.</p>`}`;
         if (L.O.length) h += `<h3>Not available <span class="n">${L.O.length}</span></h3><div class="chips">${L.O.map((pid) => chip(t, pid, "out", "")).join("")}</div>`;
         h += `<div class="legend"><span><i style="background:var(--field)"></i>On the pitch</span><span><i style="background:var(--bench)"></i>Bench</span><span><i style="background:var(--next)"></i>On next</span><span><i style="background:var(--off)"></i>Off next</span><span>Numbers: time played, then ahead (+) or behind (-) fair share</span><a href="guide.html#3-on-the-touchline">Match day help</a></div>`;
         h += `<div class="bar"><div class="row"><button class="btn" data-a="undo" ${t.undo.length ? "" : "disabled"}>Undo</button><button class="btn" data-a="stratOpen">Sub plan</button><button class="btn" data-a="modal" data-m="add">Add player</button></div></div>`;
@@ -3289,26 +3506,25 @@
         const P = S.params;
         let h = `<img class="crest sm" src="${LOGO}" alt="Wimborne RFC crest"><h2>Summary</h2><p class="muted">${esc(S.eventName || "Match day")}${S.eventDate ? ", " + esc(S.eventDate) : ""}</p>`;
         h += `<div class="row" style="margin:12px 0"><button class="btn" data-a="shareText">Share summary</button><button class="btn" data-a="exportCSV">Export CSV</button><button class="btn" data-a="exportJSON">Backup (JSON)</button><button class="btn" data-a="modal" data-m="notes">Player notes</button></div>`;
-        S.teams.forEach((tm) => {
-          const t = S.T[tm.id];
-          if (!t) return;
-          settle(t);
-          h += `<h3>${esc(tm.name)}</h3><ul class="lines">${summaryLines(t, tm)
+        matchReports().forEach(({ t, title, ids: raw }) => {
+          h += `<h3>${esc(title)}</h3><ul class="lines">${summaryLines(t, { pids: raw, name: title })
             .map((l) => `<li class="${l.k}">${esc(l.txt)}</li>`)
             .join("")}</ul>`;
           const thr = P.outlier * MIN;
-          const ids = tm.pids.filter((p) => t.ps[p]).sort((a, b) => t.ps[a].on - t.ps[a].ent - (t.ps[b].on - t.ps[b].ent));
-          h += `<div class="tbl"><table><thead><tr><th>Player</th>${Array.from({ length: P.games }, (_, i) => `<th>G${i + 1}</th>`).join("")}<th>Total</th><th>Fair</th><th>+/-</th></tr></thead><tbody>${ids
+          const ids = raw.slice().sort((a, b) => t.ps[a].on - t.ps[a].ent - (t.ps[b].on - t.ps[b].ent));
+          const sideHead = t.training ? "<th>Side</th>" : "";
+          h += `<div class="tbl"><table><thead><tr>${sideHead}<th>Player</th>${Array.from({ length: P.games }, (_, i) => `<th>G${i + 1}</th>`).join("")}<th>Total</th><th>Fair</th><th>+/-</th></tr></thead><tbody>${ids
             .map((pid) => {
               const p = t.ps[pid];
               const d = p.on - p.ent;
               const cls = d >= thr ? "hi" : -d >= thr ? "lo" : "";
               const st = p.st === "field" || p.st === "bench" ? "" : ` <span class="muted small">(${esc(ST_LABEL[p.st])})</span>`;
-              return `<tr><td>${esc(nm(pid))}${st}</td>${p.gOn.map((x) => `<td>${fmt(x)}</td>`).join("")}<td><b>${fmt(p.on)}</b></td><td>${fmt(p.ent)}</td><td class="${cls}">${fmtS(d)}</td></tr>`;
+              const sideCell = t.training ? `<td>${esc(sideLabel(t, pid))}</td>` : "";
+              return `<tr>${sideCell}<td>${esc(nm(pid))}${st}</td>${p.gOn.map((x) => `<td>${fmt(x)}</td>`).join("")}<td><b>${fmt(p.on)}</b></td><td>${fmt(p.ent)}</td><td class="${cls}">${fmtS(d)}</td></tr>`;
             })
             .join("")}</tbody></table></div>`;
         });
-        h += `<p class="small muted">Fair share is each player's slice of the pitch time while they were available, so late arrivals and injuries are accounted for.</p>`;
+        h += `<p class="small muted">${P.training ? "Fair share is each player's slice of the pitch time on every side while they were available, so late arrivals and injuries are accounted for." : "Fair share is each player's slice of the pitch time while they were available, so late arrivals and injuries are accounted for."}</p>`;
         return h;
       }
       function callOverlay(t, tm) {
@@ -3322,7 +3538,8 @@
               `<button class="pair ${p.chk ? "" : "skip"}" data-a="togglePair" data-p="${p.on || p.off}" aria-pressed="${p.chk}"><span class="pi">${p.on ? esc(nm(p.on)) : "<i>Leave the spot</i>"}</span><span class="arr">${ARROW}</span><span class="po">${p.off ? esc(nm(p.off)) : "<i>Empty spot</i>"}</span></button>`,
           )
           .join("");
-        const sub = [S.teams.length > 1 ? esc(tm.name) : "", t.callType === "plan" ? `Clock <span data-live="clock:${t.id}">${fmt(clock(t))}</span>` : ""].filter(Boolean).join(", ");
+        const who = t.training ? (S.teams.length > 2 ? "All sides" : "Both sides") : S.teams.length > 1 ? esc(tm.name) : "";
+        const sub = [who, t.callType === "plan" ? `Clock <span data-live="clock:${t.id}">${fmt(clock(t))}</span>` : ""].filter(Boolean).join(", ");
         const ended = autoShown(t);
         return `<div class="call ${t.callType}" role="dialog" aria-modal="true" aria-label="${esc(title)}">
           <div class="call-h"><div class="call-t">${title}</div>${ended ? `<div class="call-s">${esc(autoEndText(ended))}</div>` : ""}${sub ? `<div class="call-s">${sub}</div>` : ""}</div>
@@ -3348,13 +3565,16 @@
           if (L.B.length) o += `<div class="grp">Swap off for</div>` + L.B.map((x) => b("swapWith", esc(nm(x)) + ` <span class="muted small">${fmt(t.ps[x].on)}</span>`, `data-o="${x}"`)).join("");
         } else if (p.st === "bench") {
           if (L.F.length) o += `<div class="grp">Bring on for</div>` + L.F.map((x) => b("swapWith", esc(nm(x)) + ` <span class="muted small">${fmt(t.ps[x].on)}</span>`, `data-o="${x}"`)).join("");
-          if (L.F.length < S.params.onField) o += b("setst", "Put on the pitch (empty spot)", 'data-s="field"', "go");
+          const room = t.training
+            ? S.teams.some((tm) => L.F.filter((i) => t.ps[i].side === tm.id).length < S.params.onField)
+            : L.F.length < S.params.onField;
+          if (room) o += b("setst", "Put on the pitch (empty spot)", 'data-s="field"', "go");
         }
         o += `<div class="grp">Status</div>`;
         if (p.st === "field" || p.st === "bench") {
           o += b("setst", "Injured", 'data-s="injured"', "warn");
           o += b("setst", "Suspected concussion: out for the day", 'data-s="concussed"', "warn");
-          o += b("setst", "Lend to the opposition", 'data-s="lent"');
+          if (!t.training) o += b("setst", "Lend to the opposition", 'data-s="lent"');
           o += b("setst", "Gone home", 'data-s="absent"');
         } else if (p.st === "injured") {
           o += b("setst", "Fit to play again", 'data-s="bench"', "go") + b("setst", "Suspected concussion: out for the day", 'data-s="concussed"', "warn") + b("setst", "Gone home", 'data-s="absent"');
@@ -3365,7 +3585,8 @@
         } else if (p.st === "concussed") {
           o += `<p class="small">Players with a suspected concussion shouldn't return to play on the same day. If this was tapped by mistake, use Undo, or clear it below.</p>` + b("setst", "Clear: entered by mistake", 'data-s="bench"');
         }
-        const others = S.teams.filter((x) => x.id !== t.id);
+        const here = t.training ? p.side || t.id : t.id;
+        const others = S.teams.filter((x) => x.id !== here);
         if (others.length && ["pre", "ft", "done"].includes(t.stage)) {
           o += `<div class="grp">Move to</div>` + others.map((x) => b("moveTeam", esc(x.name), `data-to="${x.id}"`)).join("");
         }
@@ -3399,7 +3620,13 @@
           const going = (tm) => tm.pids.filter((p) => S.players[p] && S.players[p].resp === "going").length;
           const half = P.gameMins / P.halves;
           const halfTxt = half % 1 ? String(Math.round(half * 10) / 10) : String(half);
-          const games = P.games === 1 ? "1 game per team." : P.games + " games per team.";
+          const games = P.training
+            ? P.games === 1
+              ? "1 game, sides playing each other."
+              : P.games + " games, sides playing each other."
+            : P.games === 1
+              ? "1 game per team."
+              : P.games + " games per team.";
           const time =
             P.halves > 1
               ? `${P.gameMins} minute games, split into two halves of ${halfTxt} minutes. ${games}`
@@ -3418,18 +3645,21 @@
           const warn = short.length
             ? `<div class="note bad">${short.map((tm) => `${esc(tm.name)} has only ${going(tm)} confirmed for ${P.onField} spots.`).join(" ")}</div>`
             : "";
-          const plan =
-            S.teams.length > 1 && !same
+          const plan = P.training
+            ? `<p>${esc(`Swap plan: ${label}. It covers the whole squad, and changes happen together.`)}</p>`
+            : S.teams.length > 1 && !same
               ? `<div class="note bad">The swap plan is not the same for every team. ${S.teams.map((tm) => `${esc(tm.name)}: ${esc(planFor(tm))}`).join(". ")}.</div>`
               : `<p>${esc(S.teams.length > 1 ? `Same swap plan for every team: ${plans[0]}.` : `Swap plan: ${plans[0] || label}.`)}</p>`;
           inner = `<h2>Lock teams and start?</h2><p class="muted">This fixes the teams and opens the match. You can still move a player before a kick-off or at full-time.</p><p>${esc(time)}</p><p>${lines}</p>${plan}${warn}<div class="opts"><button class="btn primary" data-a="startConfirm">Lock and start</button><button class="btn" data-a="closeModal">Keep editing</button></div>`;
         } else if (m === "add") {
-          inner = `<h2>Add a player</h2><p class="muted">They go on the bench with a fair share counted from now.</p><div class="add"><input id="addLate" placeholder="Name" autocomplete="off"></div><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="addLate">Add to ${esc(S.teams[S.active].name)}</button></div>`;
+          const training = S.T[S.teams[S.active].id] && S.T[S.teams[S.active].id].training;
+          inner = `<h2>Add a player</h2><p class="muted">${training ? "They go on the shared bench with a fair share counted from now." : "They go on the bench with a fair share counted from now."}</p><div class="add"><input id="addLate" placeholder="Name" autocomplete="off"></div><div class="row" style="margin-top:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn primary" data-a="addLate">${training ? "Add to the bench" : `Add to ${esc(S.teams[S.active].name)}`}</button></div>`;
         } else if (m === "strat") {
           const t = S.T[S.teams[S.active].id];
           const n = lists(t).F.length + lists(t).B.length;
           const s = UI.strat;
-          inner = `<h2>Sub plan</h2><p class="muted">Changes apply from now for ${esc(S.teams[S.active].name)}. Based on ${n} available players.</p>
+          const who = t.training ? "the whole squad" : S.teams[S.active].name;
+          inner = `<h2>Sub plan</h2><p class="muted">Changes apply from now for ${esc(who)}. Based on ${n} available players.</p>
             <div class="stp"><span>Players per change</span><div class="ctl"><button class="sq" data-a="stratStep" data-f="k" data-s="-1">−</button><b>${s.k}</b><button class="sq" data-a="stratStep" data-f="k" data-s="1">+</button></div></div>
             <div class="stp"><span>Minutes between changes (0 = breaks only)</span><div class="ctl"><button class="sq" data-a="stratStep" data-f="iv" data-s="-1">−</button><b>${s.iv % 1 ? fmt(s.iv * MIN) : s.iv}</b><button class="sq" data-a="stratStep" data-f="iv" data-s="1">+</button></div></div>
             ${stratTable(n, s.k, s.iv, "stratPick")}
@@ -3461,10 +3691,13 @@
       }
       let lastSig = "";
       function gameSig() {
+        const seen = new Set();
         return (
           S.teams
             .map((tm) => {
               const t = S.T[tm.id];
+              if (!t || seen.has(t)) return "";
+              seen.add(t);
               const L = lists(t);
               const due = nextDue(t);
               const c = clock(t);
@@ -3474,7 +3707,8 @@
               const pl = ["running", "paused"].includes(t.stage)
                 ? planPairs(t, t.k).map((p) => (p.ben ? 1 : 0)).join("") + breakPairs(t).map((p) => p.on + p.off).join()
                 : "";
-              return [t.stage, t.callType, (t.toggle || []).join(), L.F.join(), L.B.join(), L.O.map((i) => i + t.ps[i].st).join(), ot, overOn, due != null && due <= c, cp, pl, t.k, t.interval, t.undo.length].join("/");
+              const sides = t.training ? L.F.map((i) => i + (t.ps[i].side || "")).join() : "";
+              return [t.stage, t.callType, (t.toggle || []).join(), L.F.join(), L.B.join(), L.O.map((i) => i + t.ps[i].st).join(), ot, overOn, due != null && due <= c, cp, pl, t.k, t.interval, t.undo.length, sides].join("/");
             })
             .join("|") +
           S.active +
@@ -3542,9 +3776,11 @@
       function tick() {
         if (!S.started) return;
         let otPing = null;
+        const seenMatch = new Set();
         S.teams.forEach((tm, i) => {
           const t = S.T[tm.id];
-          if (!t || t.stage !== "running") return;
+          if (!t || seenMatch.has(t) || t.stage !== "running") return;
+          seenMatch.add(t);
           settle(t);
           const c = clock(t);
           const due = nextDue(t);
@@ -3861,7 +4097,8 @@
           const P = S.params;
           const [lo, hi] = limits[d.k];
           const step = d.k === "outlier" ? 0.5 : 1;
-          P[d.k] = Math.min(hi, Math.max(lo, +P[d.k] + step * +d.s));
+          const min = d.k === "teams" && P.training ? Math.max(lo, 2) : lo;
+          P[d.k] = Math.min(hi, Math.max(min, +P[d.k] + step * +d.s));
           if (d.k === "teams") {
             teamSnap();
             splitTeams("shuffle");
@@ -3877,6 +4114,19 @@
         },
         toggleBreak: () => {
           S.params.breakReshuffle = !S.params.breakReshuffle;
+          S.stratPicked = false;
+          UI.simCache = {};
+          applyBestPlan();
+        },
+        toggleTraining: () => {
+          if (S.started) return;
+          S.params.training = !S.params.training;
+          if (S.params.training && S.params.teams < 2) {
+            S.params.teams = 2;
+            teamSnap();
+            splitTeams("shuffle");
+            UI.teamSel = null;
+          }
           S.stratPicked = false;
           UI.simCache = {};
           applyBestPlan();
@@ -4031,9 +4281,11 @@
         },
         callDone: () => {
           const t = cur();
-          const sel = callPairs(t).filter((p) => p.chk);
+          const shown = callPairs(t);
+          const sel = shown.filter((p) => p.chk);
+          const stays = t.training && t.callType === "break" && sel.length === shown.length ? breakPairs(t).filter((p) => p.stay) : [];
           pushUndo(t);
-          apply(t, sel, t.callType === "plan" ? "sub" : "break");
+          apply(t, sel.concat(stays), t.callType === "plan" ? "sub" : "break");
           if (t.callType === "plan") {
             const due = nextDue(t);
             if (!t.early) {
@@ -4153,13 +4405,16 @@
           const t = S.T[d.t];
           pushUndo(t);
           const p = t.ps[d.p];
-          apply(t, [p.st === "field" ? { off: d.p, on: d.o } : { off: d.o, on: d.p }], "manual");
+          const pair = p.st === "field" ? { off: d.p, on: d.o } : { off: d.o, on: d.p };
+          if (t.training) pair.side = t.ps[pair.off].side;
+          apply(t, [pair], "manual");
           UI.sheet = null;
         },
         setst: (d) => {
           const t = S.T[d.t];
           pushUndo(t);
           const was = t.ps[d.p].st;
+          if (d.s === "field" && t.training) t.ps[d.p].side = trainingSpot(t, d.p);
           setSt(t, d.p, d.s);
           let type = d.s;
           if (d.s === "bench") type = was === "injured" ? "returned" : was === "lent" ? "back" : was === "concussed" ? "cleared" : "arrived";
@@ -4176,6 +4431,21 @@
         },
         moveTeam: (d) => {
           const t = S.T[d.t];
+          if (t.training) {
+            settle(t);
+            const ps = t.ps[d.p];
+            if (ps.st === "field") ps.st = "bench";
+            ps.side = d.to;
+            ps.since = sess(t);
+            const a = S.teams.find((x) => x.pids.includes(d.p));
+            const b = S.teams.find((x) => x.id === d.to);
+            if (a) a.pids = a.pids.filter((x) => x !== d.p);
+            if (b) b.pids.push(d.p);
+            t.undo = [];
+            toast(`${nm(d.p)} moved to ${b.name}`);
+            UI.sheet = null;
+            return;
+          }
           const t2 = S.T[d.to];
           settle(t);
           settle(t2);
@@ -4230,7 +4500,8 @@
           const name = $("#addLate").value.trim();
           if (!name) return;
           const t = cur();
-          const tm = S.teams[S.active];
+          let tm = S.teams[S.active];
+          if (t.training) tm = S.teams.slice().sort((a, b) => a.pids.length - b.pids.length)[0];
           const id = uid();
           S.players[id] = { id, name, resp: "going" };
           S.order.push(id);
@@ -4238,9 +4509,10 @@
           settle(t);
           t.ps[id] = newPS("bench");
           t.ps[id].since = sess(t);
+          if (t.training) t.ps[id].side = tm.id;
           logEv(t, "arrived", { pid: id });
           UI.modal = null;
-          toast(`${name} added to the bench`);
+          toast(t.training ? `${name} added to the bench for ${tm.name}` : `${name} added to the bench`);
         },
         exportJSON: () => {
           const o = clone(S);
@@ -4399,6 +4671,8 @@
             delete o.stars;
             Object.values(o.T || {}).forEach((t) => (t.undo = t.undo || []));
             S = o;
+            if (!S.params.training) S.params.training = false;
+            linkTraining();
             if (stars && typeof stars === "object" && !Array.isArray(stars)) {
               const incoming = cleanStars(stars);
               const next = Object.assign({}, FB.stars);

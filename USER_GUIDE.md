@@ -96,6 +96,7 @@ On the **Setup** screen:
 | Games per team | 3 |
 | Halves per game | 2 |
 | Full reshuffle at half-time and between games | On (recommended) |
+| Training only | Off. Turn it on when the squad plays itself |
 
 ### Choosing a substitution plan
 
@@ -111,7 +112,7 @@ The plan marked **Best** balances fairness against disruption. For example, with
 
 ### Splitting the squad
 
-Start with **Shuffle** or **First team**, then fine-tune by hand. **Shuffle** is the default: it spreads role models across the teams. **First team** puts the players with the most stars on team A, then the next team, and so on. **Split A to Z** is there when you want a plain alphabetical deal. You can still move anyone by hand.
+Start with **Shuffle**, **First team** or **Balanced**, then fine-tune by hand. **Shuffle** is the default: it spreads role models across the teams. **First team** puts the strongest players on team A, then the next team, and so on. **Balanced** shares that strength across the teams. Defence and contest stars count for more than attack. You can still move anyone by hand.
 
 | To do this | Do this |
 | --- | --- |
@@ -123,9 +124,20 @@ Start with **Shuffle** or **First team**, then fine-tune by hand. **Shuffle** is
 
 Each team shows how many players it has, how many have confirmed, and the bench size, so you can see the balance as you go. Names stay in alphabetical order within each team.
 
-When the teams look right, tap **Lock teams and start**. Fair Time asks you to confirm. The pop-up shows the game length, and, when you play halves, how that time is split. It also shows the swap plan, and whether every team is using that same plan. If a team is short of confirmed players, that is shown too. Tap **Lock and start** to fix the teams, or **Keep editing** to go back. Teams are fixed from then on, apart from moving a player between teams before a kick-off or at full-time on the Match screen.
+When the teams look right, tap **Lock teams and start**. Fair Time asks you to confirm. The pop-up shows the game length, and, when you play halves, how that time is split. It also shows the swap plan, and whether every team is using that same plan. In a training game it shows one plan for the whole squad. If a team is short of confirmed players, that is shown too. Tap **Lock and start** to fix the teams, or **Keep editing** to go back. Teams are fixed from then on, apart from moving a player between teams before a kick-off or at full-time on the Match screen.
 
 **Share team list** (on the Match screen, and in the menu) sends the event title, each team and the plan as a message for WhatsApp or anywhere else. Another coach can paste that message into **Paste names**. That replaces their squad list and keeps their event title and date. It does not bring across the teams or the settings. Use **Export squad file** when the other coach needs those too.
+
+### Training only
+
+Turn **Training only** on when there is no opposition and the squad plays itself.
+
+- The sides share one clock. There are no team tabs.
+- Fair time is worked out across everyone who is available, on either side.
+- When a change is due, the swaps for both sides come up together.
+- The player coming on takes the spot of the player coming off, so they join that side for the spell. Each side stays at the same number on the pitch.
+
+**Players per side** is how many from each side are on the pitch. **Games** is how many times those sides play each other. The bench is shared.
 
 ---
 
@@ -145,7 +157,7 @@ The clock is at the top, with a countdown to the next change. Below it, every pl
 
 Each card shows the minutes played so far. It also shows how far that player is ahead (+) or behind (-) their fair share. The **Next change** list reads left to right: the player coming on, then the player they are coming on for.
 
-With two teams on one phone, use the tabs at the top. A red dot on a tab means that team has a change due.
+With two teams on one phone, use the tabs at the top. A red dot on a tab means that team has a change due. A training game keeps both sides on this screen under the one clock. The bench is labelled **Shared bench**.
 
 ### Running a game
 
@@ -216,7 +228,7 @@ Buttons at the top of the Summary:
 
 ## 6. Player notes
 
-Tap a player's name on the Squad screen, or open their card on the Match screen. At the top, **Role model** gives a gold star for Attack, Defence, or Contest. Tap a pillar to turn that star on or off. A player can show one, two, or all three stars beside their name. Those stars are used when you split the teams. They stay on this phone, and they do not need a coach name.
+Tap a player's name on the Squad screen, or open their card on the Match screen. At the top, **Role model** gives a gold star for Attack, Defence, or Contest. Tap a pillar to turn that star on or off. A player can show one, two, or all three stars beside their name. Those stars are used when you split the teams. Defence and contest count for more than attack. They stay on this phone, and they do not need a coach name.
 
 Under **Notes**, each skill is a split. Tap the green side when it is done well, or the red side for the error. Each tap counts for this event, so you can see the balance on the row, for example **+2 -1**.
 
