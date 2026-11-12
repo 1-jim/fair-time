@@ -1076,3 +1076,138 @@ test("import squad file from the menu replaces a game under way after a warning"
   expect(state.started).toBe(false);
   expect(Object.values(state.players).map((p) => p.name)).toEqual(["Casey Quinn"]);
 });
+
+test("balanced shares weighted stars and defence outranks attack", async ({ page }) => {
+  const spread = await page.evaluate(() => {
+    applyImport(
+      {
+        rows: ["Pat Defence", "Jo Contest", "Ada Attack", "Bea Attack"].map((name) => ({ name, resp: "going" })),
+      },
+      true,
+    );
+    S.params.teams = 2;
+    FB.stars = {};
+    const set = (name, stars) => {
+      FB.stars[playerHash("", name)] = stars;
+    };
+    set("Pat Defence", ["defence", "contest"]);
+    set("Jo Contest", ["defence", "contest"]);
+    set("Ada Attack", ["attack"]);
+    set("Bea Attack", ["attack"]);
+    saveFB();
+    splitTeams("balanced");
+    const sides = S.teams.map((t) => ({
+      heavy: t.pids.filter((id) => starWeight(id) === 4).length,
+      weight: t.pids.reduce((sum, id) => sum + starWeight(id), 0),
+    }));
+    applyImport(
+      {
+        rows: [
+          { name: "Dee Defence", resp: "going" },
+          { name: "Ann Attack", resp: "going" },
+        ],
+      },
+      true,
+    );
+    S.params.teams = 2;
+    FB.stars = {};
+    FB.stars[playerHash("", "Dee Defence")] = ["defence"];
+    FB.stars[playerHash("", "Ann Attack")] = ["attack"];
+    saveFB();
+    splitTeams("rated");
+    return {
+      sides,
+      first: S.teams[0].pids.map((id) => nm(id)),
+      dee: starWeight(S.teams[0].pids[0]),
+      ann: starWeight(S.teams[1].pids[0]),
+    };
+  });
+  expect(spread.sides.map((s) => s.heavy)).toEqual([1, 1]);
+  expect(spread.sides.map((s) => s.weight)).toEqual([5, 5]);
+  expect(spread.first).toEqual(["Dee Defence"]);
+  expect(spread.dee).toBeGreaterThan(spread.ann);
+
+  await page.evaluate(() => {
+    S.view = "setup";
+    prepareSetup();
+    render();
+  });
+  await expect(page.locator('[data-a=split][data-m="az"]')).toHaveCount(0);
+  await expect(page.locator('[data-a=split][data-m="balanced"]')).toBeVisible();
+  await expect(page.locator('[data-a=split][data-m="rated"]')).toHaveText("First team");
+});
+
+test("training only shares fair time and substitutes both sides together", async ({ page }) => {
+  await page.evaluate(() => {
+    applyImport(
+      {
+        rows: ["Ada", "Bea", "Cleo", "Dee", "Eve", "Fay", "Gia", "Hana"].map((name) => ({ name, resp: "going" })),
+      },
+      true,
+    );
+    S.params.training = true;
+    S.params.teams = 2;
+    S.params.onField = 3;
+    S.params.games = 1;
+    S.params.halves = 1;
+    S.params.gameMins = 10;
+    S.params.k = 2;
+    S.params.interval = 2;
+    S.params.breakReshuffle = true;
+    S.stratPicked = true;
+    splitTeams("shuffle");
+    S.view = "setup";
+    render();
+  });
+  await expect(page.locator("[data-a=toggleTraining]")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Players per side")).toBeVisible();
+  await expect(page.getByText("The squad plays itself on one clock.")).toBeVisible();
+  await tap(page, "[data-a=startDay]");
+  await expect(page.getByText("10 minute games, played straight through. 1 game, sides playing each other.")).toBeVisible();
+  await expect(page.getByText("It covers the whole squad, and changes happen together.")).toBeVisible();
+  await tap(page, "[data-a=startConfirm]");
+  await expect(page.locator(".tt")).toHaveCount(0);
+  await expect(page.locator("h3", { hasText: "Team A" })).toContainText("3 of 3");
+  await expect(page.locator("h3", { hasText: "Team B" })).toContainText("3 of 3");
+  await expect(page.locator("h3", { hasText: "Shared bench" })).toContainText("2");
+  await tap(page, "[data-a=kickoff]");
+  await page.clock.runFor(MIN);
+  const fair = await page.evaluate(() => {
+    const t = S.T[S.teams[0].id];
+    settle(t);
+    const ps = Object.values(t.ps);
+    const ent = ps[0].ent;
+    return {
+      sameEnt: ps.every((p) => p.ent === ent && ent > 0),
+      playing: ps.filter((p) => p.st === "field").length,
+      shared: S.T[S.teams[0].id] === S.T[S.teams[1].id],
+    };
+  });
+  expect(fair.sameEnt).toBe(true);
+  expect(fair.playing).toBe(6);
+  expect(fair.shared).toBe(true);
+
+  const moved = await page.evaluate(() => {
+    const t = S.T[S.teams[0].id];
+    const { F, B } = lists(t);
+    const off = F[0];
+    const on = B.find((id) => t.ps[id].side !== t.ps[off].side);
+    t.ps[off].on += 10 * 60000;
+    t.ps[on].ent += 10 * 60000;
+    return { off, on, side: t.ps[off].side };
+  });
+  await tap(page, "[data-a=subNow]");
+  await expect(page.locator(".call-s")).toContainText("Both sides");
+  await tap(page, "[data-a=callDone]");
+  const after = await page.evaluate((ids) => {
+    const t = S.T[S.teams[0].id];
+    return {
+      onSide: t.ps[ids.on].side,
+      offSt: t.ps[ids.off].st,
+      pitch: S.teams.map((tm) => Object.keys(t.ps).filter((id) => t.ps[id].st === "field" && t.ps[id].side === tm.id).length),
+    };
+  }, moved);
+  expect(after.onSide).toBe(moved.side);
+  expect(after.offSt).toBe("bench");
+  expect(after.pitch).toEqual([3, 3]);
+});
