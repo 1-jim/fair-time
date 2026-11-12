@@ -112,7 +112,7 @@ The plan marked **Best** balances fairness against disruption. For example, with
 
 ### Splitting the squad
 
-Start with **Shuffle**, **First team** or **Balanced**, then fine-tune by hand. **Shuffle** is the default: it spreads role models across the teams. **First team** puts the strongest players on team A, then the next team, and so on. **Balanced** shares that strength across the teams. Defence and contest stars count for more than attack. You can still move anyone by hand.
+Start with **Shuffle**, **First team** or **Balanced**, then fine-tune by hand. **Shuffle** is the default: it spreads role models across the teams. **First team** puts the strongest players on team A, then the next team, and so on. **Balanced** shares that strength across the teams and keeps the player numbers level. A contest star counts for more than defence, and defence counts for more than attack. You can still move anyone by hand.
 
 | To do this | Do this |
 | --- | --- |
@@ -228,7 +228,7 @@ Buttons at the top of the Summary:
 
 ## 6. Player notes
 
-Tap a player's name on the Squad screen, or open their card on the Match screen. At the top, **Role model** gives a gold star for Attack, Defence, or Contest. Tap a pillar to turn that star on or off. A player can show one, two, or all three stars beside their name. Those stars are used when you split the teams. Defence and contest count for more than attack. They stay on this phone, and they do not need a coach name.
+Tap a player's name on the Squad screen, or open their card on the Match screen. At the top, **Role model** gives a gold star for Attack, Defence, or Contest. Tap a pillar to turn that star on or off. A player can show one, two, or all three stars beside their name. Those stars are used when you split the teams. A contest star counts for more than defence, and defence counts for more than attack. They stay on this phone, and they do not need a coach name.
 
 Under **Notes**, each skill is a split. Tap the green side when it is done well, or the red side for the error. Each tap counts for this event, so you can see the balance on the row, for example **+2 -1**.
 

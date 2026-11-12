@@ -1097,7 +1097,7 @@ test("balanced shares weighted stars and defence outranks attack", async ({ page
     saveFB();
     splitTeams("balanced");
     const sides = S.teams.map((t) => ({
-      heavy: t.pids.filter((id) => starWeight(id) === 4).length,
+      heavy: t.pids.filter((id) => starWeight(id) === 5).length,
       weight: t.pids.reduce((sum, id) => sum + starWeight(id), 0),
     }));
     applyImport(
@@ -1123,7 +1123,7 @@ test("balanced shares weighted stars and defence outranks attack", async ({ page
     };
   });
   expect(spread.sides.map((s) => s.heavy)).toEqual([1, 1]);
-  expect(spread.sides.map((s) => s.weight)).toEqual([5, 5]);
+  expect(spread.sides.map((s) => s.weight)).toEqual([6, 6]);
   expect(spread.first).toEqual(["Dee Defence"]);
   expect(spread.dee).toBeGreaterThan(spread.ann);
 
@@ -1210,4 +1210,79 @@ test("training only shares fair time and substitutes both sides together", async
   expect(after.onSide).toBe(moved.side);
   expect(after.offSt).toBe("bench");
   expect(after.pitch).toEqual([3, 3]);
+});
+
+test("training balance keeps 30 players level with contest 3, defence 2, attack 1", async ({ page }) => {
+  const report = await page.evaluate(() => {
+    const pillars = ["attack", "defence", "contest"];
+    const weightOf = { attack: 1, defence: 2, contest: 3 };
+    const rnd = (seed) => {
+      let s = seed >>> 0;
+      return () => {
+        s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+        return s / 4294967296;
+      };
+    };
+    const bestDiff = (weights) => {
+      const total = weights.reduce((sum, w) => sum + w, 0);
+      let best = total;
+      const n = weights.length;
+      for (let mask = 0; mask < 1 << n; mask++) {
+        let sum = 0;
+        for (let i = 0; i < n; i++) if (mask & (1 << i)) sum += weights[i];
+        best = Math.min(best, Math.abs(total - 2 * sum));
+      }
+      return best;
+    };
+    const failures = [];
+    let shown = null;
+    for (let seed = 1; seed <= 40; seed++) {
+      const random = rnd(seed);
+      const names = Array.from({ length: 30 }, (_, i) => "Player " + (i + 1));
+      applyImport({ rows: names.map((name) => ({ name, resp: "going" })) }, true);
+      S.params.training = true;
+      S.params.teams = 2;
+      FB.stars = {};
+      const order = names.map((_, i) => i);
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      const starred = order.slice(0, 10);
+      const assigned = starred.map((index, n) => [index, pillars[n < 3 ? n : Math.floor(random() * 3)]]);
+      assigned.forEach(([index, pill]) => {
+        FB.stars[playerHash("", names[index])] = [pill];
+      });
+      saveFB();
+      splitTeams("balanced");
+      const sides = S.teams.map((t) => {
+        const stars = { attack: 0, defence: 0, contest: 0 };
+        let score = 0;
+        t.pids.forEach((id) => {
+          (FB.stars[playerHash("", nm(id))] || []).forEach((pill) => {
+            stars[pill] += 1;
+            score += weightOf[pill];
+          });
+        });
+        return { count: t.pids.length, score, stars };
+      });
+      const weights = assigned.map(([, pill]) => weightOf[pill]);
+      const diff = Math.abs(sides[0].score - sides[1].score);
+      const optimal = bestDiff(weights);
+      if (sides[0].count !== 15 || sides[1].count !== 15 || diff !== optimal || S.params.training !== true) {
+        failures.push({ seed, sides, diff, optimal });
+      }
+      if (seed === 1) shown = { seed, sides, diff, optimal, stars: assigned.map(([index, pill]) => names[index] + " " + pill) };
+    }
+    S.view = "setup";
+    prepareSetup();
+    render();
+    return { failures, shown };
+  });
+  expect(report.failures).toEqual([]);
+  expect(report.shown.sides.map((s) => s.count)).toEqual([15, 15]);
+  expect(report.shown.diff).toBe(report.shown.optimal);
+  await expect(page.locator('[aria-label="Training only"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('.team[data-ti="0"] .tstats')).toContainText("15 players");
+  await expect(page.locator('.team[data-ti="1"] .tstats')).toContainText("15 players");
 });
