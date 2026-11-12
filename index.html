@@ -1368,8 +1368,8 @@
         { id: "contest", letter: "C", name: "Contest" },
       ];
       const STAR_IDS = STAR_PILLARS.map((p) => p.id);
-      // Defence and contest count double attack when a split uses the stars.
-      const STAR_WEIGHT = { attack: 1, defence: 2, contest: 2 };
+      // Contest counts 3, defence 2 and attack 1 when a split uses the stars.
+      const STAR_WEIGHT = { attack: 1, defence: 2, contest: 3 };
       const $ = (s) => document.querySelector(s);
       const uid = () => Math.random().toString(36).slice(2, 10);
       const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -2493,12 +2493,50 @@
             }
             return;
           }
+          // Equal headcount first. With two sides, pick the equal split whose
+          // weighted stars are as close as the numbers allow.
+          if (n === 2) {
+            const sizeA = Math.ceil(ranked.length / 2);
+            const weights = ranked.map((id) => starWeight(id));
+            const totalW = weights.reduce((sum, w) => sum + w, 0);
+            const parent = Array.from({ length: sizeA + 1 }, () => new Map());
+            parent[0].set(0, null);
+            for (let i = 0; i < ranked.length; i++) {
+              const w = weights[i];
+              for (let k = sizeA - 1; k >= 0; k--) {
+                for (const sum of [...parent[k].keys()]) {
+                  const next = sum + w;
+                  if (!parent[k + 1].has(next)) parent[k + 1].set(next, { i, prev: sum });
+                }
+              }
+            }
+            let bestSum = 0;
+            let bestDiff = Infinity;
+            parent[sizeA].forEach((_, sum) => {
+              const diff = Math.abs(totalW - 2 * sum);
+              if (diff < bestDiff) {
+                bestDiff = diff;
+                bestSum = sum;
+              }
+            });
+            const onA = new Set();
+            let k = sizeA;
+            let sum = bestSum;
+            while (k > 0) {
+              const step = parent[k].get(sum);
+              onA.add(step.i);
+              sum = step.prev;
+              k--;
+            }
+            ranked.forEach((id, i) => S.teams[onA.has(i) ? 0 : 1].pids.push(id));
+            return;
+          }
           ranked.forEach((id) => {
             let best = 0;
             let bestKey = null;
             for (let i = 0; i < n; i++) {
               const tm = S.teams[i];
-              const key = [tm.pids.reduce((sum, pid) => sum + starWeight(pid), 0), tm.pids.length];
+              const key = [tm.pids.length, tm.pids.reduce((sum, pid) => sum + starWeight(pid), 0)];
               if (!bestKey || key[0] < bestKey[0] || (key[0] === bestKey[0] && key[1] < bestKey[1])) {
                 bestKey = key;
                 best = i;
@@ -3251,7 +3289,7 @@
         if (!lock) {
           const group = P.training ? "side" : "team";
           h += `<div class="tbar"><button class="btn" data-a="split" data-m="shuffle">Shuffle</button><button class="btn" data-a="split" data-m="rated">First team</button><button class="btn" data-a="split" data-m="balanced">Balanced</button><button class="btn" data-a="teamUndo" ${UI.teamUndo.length ? "" : "disabled"}>Undo</button></div>
-            <p class="small muted">Shuffle spreads role models. First team puts the strongest players on team A. Defence and contest count for more than attack. Balanced shares that strength across the ${group}s. Drag a name to another ${group}, or drop it on a player to swap them. On a phone, press and hold first. Or tap a name, then tap where it goes. Amber names haven't confirmed yet.</p>`;
+            <p class="small muted">Shuffle spreads role models. First team puts the strongest players on team A. A contest star counts for more than defence, and defence counts for more than attack. Balanced shares that strength across the ${group}s and keeps the player numbers level. Drag a name to another ${group}, or drop it on a player to swap them. On a phone, press and hold first. Or tap a name, then tap where it goes. Amber names haven't confirmed yet.</p>`;
         }
         const selTeam = UI.teamSel ? S.teams.findIndex((x) => x.pids.includes(UI.teamSel)) : -1;
         h += `<div class="teams ${S.teams.length > 2 ? "many" : ""}" style="--n:${S.teams.length}">${S.teams
