@@ -1408,14 +1408,14 @@
           eventDate: "",
           groupName: "",
           params: {
-            teams: 2,
+            teams: 1,
             onField: 9,
-            gameMins: 16,
-            games: 3,
+            gameMins: 30,
+            games: 1,
             halves: 2,
             k: 4,
             interval: 4,
-            breakReshuffle: true,
+            breakReshuffle: false,
             outlier: 1,
             training: false,
           },
@@ -1581,10 +1581,7 @@
           if (side && pair.on) pair.side = side;
           pairs.push(pair);
         }
-        if (!S.params.breakReshuffle) {
-          const swaps = pairs.filter((p) => p.off && p.on).slice(0, t.k);
-          pairs = swaps.concat(pairs.filter((p) => !p.off || !p.on));
-        }
+        if (!S.params.breakReshuffle) pairs = fairBreaks(t, pairs);
         return pairs;
       }
       function breakPairs(t) {
@@ -1643,10 +1640,7 @@
           const on = ons[j] || null;
           pairs.push({ off: offs[j] || null, on, ben: true, side: on ? target[on] : undefined });
         }
-        if (!S.params.breakReshuffle) {
-          const swaps = pairs.filter((p) => p.off && p.on).slice(0, t.k);
-          return swaps.concat(pairs.filter((p) => !p.off || !p.on));
-        }
+        if (!S.params.breakReshuffle) return fairBreaks(t, pairs);
         chosen.forEach((i) => {
           if (inF.has(i) && target[i] && t.ps[i].side !== target[i]) pairs.push({ stay: i, side: target[i], ben: true });
         });
@@ -2625,6 +2619,21 @@
           S.teams[best].pids.push(id);
         });
       }
+      // Another team for every 12 players, while each team still has someone to come on.
+      function teamsForSquad(n, onField) {
+        const pitch = onField == null ? S.params.onField : onField;
+        let t = n < 1 ? 1 : Math.min(6, Math.ceil(n / 12));
+        while (t > 1 && Math.floor(n / t) <= pitch) t -= 1;
+        return t;
+      }
+      function squadCount() {
+        return S.order.filter((id) => S.players[id] && S.players[id].resp !== "no").length;
+      }
+      // Half-time keeps the swaps that share time more fairly, up to the plan's number.
+      function fairBreaks(t, pairs) {
+        const swaps = pairs.filter((p) => p.off && p.on && dd(t, p.on) > dd(t, p.off)).slice(0, t.k || pairs.length);
+        return swaps.concat(pairs.filter((p) => !p.off || !p.on));
+      }
       function goingOnTeams() {
         return S.teams.reduce((sum, tm) => sum + tm.pids.filter((p) => S.players[p] && S.players[p].resp === "going").length, 0);
       }
@@ -2639,7 +2648,12 @@
       }
       function prepareSetup() {
         if (S.started) return;
-        if (!S.teams.length && S.order.some((id) => S.players[id] && S.players[id].resp !== "no")) splitTeams("shuffle");
+        if (!S.teams.length && S.order.some((id) => S.players[id] && S.players[id].resp !== "no")) {
+          let want = teamsForSquad(squadCount());
+          if (S.params.training) want = Math.max(2, want);
+          S.params.teams = want;
+          splitTeams("shuffle");
+        }
         alignTeams();
         applyBestPlan();
       }
@@ -3275,11 +3289,13 @@
         if (lock) h += `<div class="note">Match day is under way. These settings are locked; change the substitution plan per team from the Match screen.</div>`;
         h += `<div class="panel">
           ${stepper(P.training ? "Sides" : "Teams", "teams", "", lock)}
+          ${lock ? "" : `<p class="small muted">Another team for every 12 players, as long as each team still has someone to come on.</p>`}
           ${stepper(P.training ? "Players per side" : "Players on the pitch", "onField", "", lock)}
           ${stepper("Minutes per game", "gameMins", "", lock)}
           ${stepper(P.training ? "Games" : "Games per team", "games", "", lock)}
           ${stepper("Halves per game", "halves", "", lock)}
           <div class="stp"><span>Full reshuffle at half-time and between games</span><button class="switch" aria-pressed="${P.breakReshuffle}" data-a="toggleBreak" ${lock ? "disabled" : ""} aria-label="Full reshuffle at breaks"></button></div>
+          ${lock ? "" : `<p class="small muted">Half-time suggests the changes that share the time fairly. Turn this on to pick the whole pitch again.</p>`}
           <div class="stp"><span>Training only</span><button class="switch" aria-pressed="${P.training}" data-a="toggleTraining" ${lock ? "disabled" : ""} aria-label="Training only"></button></div>
           <p class="small muted">${P.training ? "The squad plays itself on one clock. Fair time is shared across the sides, and substitutions happen together." : "Each team plays the opposition on its own clock."}</p>
           ${stepper("Flag anyone this far from fair share (min)", "outlier", "", false)}
