@@ -1449,7 +1449,7 @@
       let S = load() || fresh();
       linkTraining();
       let FB = loadFB();
-      const UI = { sheet: null, modal: null, simCache: {}, strat: null, squadFilter: [], squadKeep: [], teamSel: null, teamUndo: [], coachBack: "" };
+      const UI = { sheet: null, modal: null, cover: null, simCache: {}, strat: null, squadFilter: [], squadKeep: [], teamSel: null, teamUndo: [], coachBack: "" };
       let DL = null;
       if (window.claude && typeof window.claude.use === "function") {
         window.claude
@@ -1536,6 +1536,17 @@
         if (t && t.spots) return t.spots;
         if (t && t.training) return S.params.onField * Math.max(1, S.teams.length);
         return S.params.onField;
+      }
+      // A pitch player coming off during the game leaves a gap that wants a replacement.
+      function coverFor(t, pid) {
+        const ps = t && t.ps && t.ps[pid];
+        if (!ps || ps.st !== "field" || t.stage === "ft" || t.stage === "done") return null;
+        let short;
+        if (t.training) {
+          const n = Object.keys(t.ps).filter((i) => t.ps[i].st === "field" && t.ps[i].side === ps.side).length;
+          short = n <= S.params.onField;
+        } else short = lists(t).F.length <= slotsOf(t);
+        return { short, side: ps.side || "" };
       }
       function planPairs(t, k) {
         const { F, B } = lists(t);
@@ -3711,6 +3722,34 @@
           } else {
             inner = `<h2>${esc(nm(pid))}</h2><p class="muted">${esc([S.eventName, S.groupName].filter(Boolean).join(", ") || "Notes stay on this phone when you start a new session.")}</p>${feedbackBlock(pid, "note")}<div class="row" style="margin-top:12px"><button class="btn" data-a="closeModal">Close</button></div>`;
           }
+        } else if (m === "cover") {
+          const c = UI.cover;
+          const t = c && S.T[c.t];
+          const p = t && t.ps[c.p];
+          if (!c || !t || !p) {
+            inner = `<h2>Replacement</h2><div class="opts"><button class="btn" data-a="closeModal">Close</button></div>`;
+          } else {
+            const title =
+              c.s === "concussed"
+                ? `${nm(c.p)} is out with a suspected concussion`
+                : c.s === "absent"
+                  ? `${nm(c.p)} has gone home`
+                  : `${nm(c.p)} is injured`;
+            const info = coverFor(t, c.p);
+            const bench = info && info.short ? lists(t).B : [];
+            const place = info && info.short && t.training && sideLabel(t, c.p) ? ` They take the place on ${esc(sideLabel(t, c.p))}.` : "";
+            let note = "The pitch stays full without them, so nobody comes on.";
+            if (info && info.short) note = bench.length ? `Choose the replacement. The suggested player is furthest behind.${place}` : "No one is on the bench, so the pitch plays short.";
+            const picks = bench
+              .map((id) => {
+                const on = id === c.on;
+                const suggested = id === bench[0];
+                return `<button class="btn${on ? " primary" : ""}" data-a="coverPick" data-o="${id}" aria-pressed="${on}"><span class="nm">${esc(nm(id))}</span>${suggested ? " Suggested" : ""}</button>`;
+              })
+              .join("");
+            const bring = c.on && bench.includes(c.on) ? `<button class="btn big go" data-a="coverOk">Bring on ${esc(nm(c.on))}</button>` : `<button class="btn big go" data-a="coverOk">Confirm</button>`;
+            inner = `<h2>${esc(title)}</h2><p class="muted">${note}</p><div class="opts">${picks}${bring}<button class="btn" data-a="closeModal">Cancel</button></div>`;
+          }
         } else if (m === "notes") {
           inner = `<h2>Player notes</h2><p class="muted">${FB.coach ? `Marked as ${esc(FB.coach)}.` : "Set your name before you add a note."} These stay on this phone when you start a new session. Share the file to combine notes from other coaches.</p><div class="row"><button class="btn" data-a="shareFeedback">Share notes file</button><label class="btn file">Import notes file<input type="file" accept=".json,application/json" data-ch="feedbackFile"></label></div><div class="row" style="margin-top:8px"><button class="btn" data-a="coachOpen">Coach name</button></div>${allNotesHtml()}<div class="row" style="margin-top:12px"><button class="btn" data-a="closeModal">Close</button></div>`;
         }
@@ -3751,7 +3790,8 @@
             .join("|") +
           S.active +
           (UI.sheet ? JSON.stringify(UI.sheet) : "") +
-          (UI.modal || "")
+          (UI.modal || "") +
+          (UI.cover ? [UI.cover.p, UI.cover.s, UI.cover.on].join(",") : "")
         );
       }
       function liveUpdate() {
@@ -4064,11 +4104,18 @@
           S.view = d.v;
           UI.sheet = null;
           UI.modal = null;
+          UI.cover = null;
         },
         modal: (d) => {
           UI.modal = d.m;
         },
         closeModal: () => {
+          if (UI.modal === "cover" && UI.cover) {
+            UI.sheet = { t: UI.cover.t, p: UI.cover.p };
+            UI.cover = null;
+            UI.modal = null;
+            return;
+          }
           const back = UI.modal === "coach" && !UI.pending && UI.coachBack === "notes";
           UI.pending = null;
           UI.coachBack = "";
@@ -4448,10 +4495,30 @@
           apply(t, [pair], "manual");
           UI.sheet = null;
         },
+        coverPick: (d) => {
+          if (!UI.cover || !d.o) return;
+          UI.cover.on = d.o;
+        },
+        coverOk: () => {
+          const c = UI.cover;
+          if (!c) return;
+          UI.cover = null;
+          UI.modal = null;
+          A.setst({ t: c.t, p: c.p, s: c.s, ok: "1", on: c.on || "" });
+        },
         setst: (d) => {
           const t = S.T[d.t];
-          pushUndo(t);
           const was = t.ps[d.p].st;
+          if (["injured", "concussed", "absent"].includes(d.s) && !d.ok && coverFor(t, d.p)) {
+            const info = coverFor(t, d.p);
+            const bench = lists(t).B;
+            UI.cover = { t: d.t, p: d.p, s: d.s, on: info.short && bench.length ? bench[0] : "" };
+            UI.modal = "cover";
+            UI.sheet = null;
+            return;
+          }
+          pushUndo(t);
+          const side = t.training ? t.ps[d.p].side : "";
           if (d.s === "field" && t.training) t.ps[d.p].side = trainingSpot(t, d.p);
           setSt(t, d.p, d.s);
           let type = d.s;
@@ -4459,13 +4526,24 @@
           if (d.s !== "field") logEv(t, type, { pid: d.p });
           else logEv(t, "manual", { off: null, on: d.p });
           if (was === "field" && t.stage !== "ft" && t.stage !== "done") {
-            const f = fillPairs(t).slice(0, 1);
-            if (f.length) {
-              apply(t, f, "fill");
-              toast(`${nm(f[0].on)} on for ${nm(d.p)}`);
+            if (d.ok) {
+              if (d.on && t.ps[d.on] && t.ps[d.on].st === "bench") {
+                const pair = { off: null, on: d.on, ben: true };
+                if (t.training) pair.side = side || trainingSpot(t, d.on);
+                apply(t, [pair], "fill");
+                toast(`${nm(d.on)} on for ${nm(d.p)}`);
+              }
+            } else {
+              const f = fillPairs(t).slice(0, 1);
+              if (f.length) {
+                apply(t, f, "fill");
+                toast(`${nm(f[0].on)} on for ${nm(d.p)}`);
+              }
             }
           }
           UI.sheet = null;
+          UI.cover = null;
+          UI.modal = null;
         },
         moveTeam: (d) => {
           const t = S.T[d.t];
@@ -4792,8 +4870,11 @@
         if (e.key === "Enter" && e.target.id === "addLate") A.addLate(), save(), render();
         if (e.key === "Enter" && e.target.id === "coachName") A.coachSave(), save(), render();
         if (e.key === "Escape" && (UI.sheet || UI.modal)) {
-          UI.sheet = null;
-          UI.modal = null;
+          if (UI.modal === "cover") A.closeModal();
+          else {
+            UI.sheet = null;
+            UI.modal = null;
+          }
           render();
         }
       });
