@@ -90,12 +90,12 @@ On the **Setup** screen:
 
 | Setting | Example |
 | --- | --- |
-| Teams | 2 |
+| Teams | From the squad. Another team for every 12 players, as long as each team still has someone to come on. A squad of 20 is two teams. A squad of 30 is three. |
 | Players on the pitch | 9 |
-| Minutes per game | 16 |
-| Games per team | 3 |
+| Minutes per game | 30, so each half is 15 minutes |
+| Games per team | 1 |
 | Halves per game | 2 |
-| Full reshuffle at half-time and between games | On (recommended) |
+| Full reshuffle at half-time and between games | Off. Half-time still suggests the changes that share the time fairly. |
 | Training only | Off. Turn it on when the squad plays itself |
 
 ### Choosing a substitution plan
@@ -170,7 +170,7 @@ With two teams on one phone, use the tabs at the top. A red dot on a tab means t
 4. Stoppage before the change is due? Tap **Sub now** to do it early.
 5. The clock shows **Elapsed** on the left and **Overtime** on the right. Overtime is how far this half has run past its length, from stoppages and delays. The board turns red, and the phone beeps every 30 seconds.
 6. Tap **Half-time** or **Full-time** when the referee blows. If a half runs 25% over its length with no tap, Fair Time ends it and records that nobody tapped.
-7. At half-time and between games, Fair Time suggests a bigger reshuffle to even things out. Check it, then tap **Done**.
+7. At half-time and between games, Fair Time suggests the changes that share the time fairly. The players furthest behind come on. Check the list, then tap **Done**. Turn on **Full reshuffle** in Setup when you want the whole pitch picked again.
 
 **Pause** stops the clock for a long stoppage, so that time is not added to overtime. **Undo** reverses your last action if you tap the wrong thing. Undoing an automatic end leaves the half running, so you can tap **Half-time** or **Full-time** yourself.
 

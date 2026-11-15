@@ -73,12 +73,92 @@ test("squad list stays alphabetical and filters combine", async ({ page }) => {
   await expect(page.locator(".sq-row")).toHaveCount(33);
 });
 
+test("a new session uses 15 minute halves, one game, and teams from the squad", async ({ page }) => {
+  const fresh = await page.evaluate(() => ({
+    games: S.params.games,
+    mins: S.params.gameMins,
+    halves: S.params.halves,
+    reshuffle: S.params.breakReshuffle,
+    teams: [12, 13, 18, 20, 24, 25, 28, 30, 36].map((n) => [n, teamsForSquad(n)]),
+  }));
+  expect(fresh.games).toBe(1);
+  expect(fresh.mins).toBe(30);
+  expect(fresh.halves).toBe(2);
+  expect(fresh.reshuffle).toBe(false);
+  expect(fresh.teams).toEqual([
+    [12, 1],
+    [13, 1],
+    [18, 1],
+    [20, 2],
+    [24, 2],
+    [25, 2],
+    [28, 2],
+    [30, 3],
+    [36, 3],
+  ]);
+
+  await page.evaluate(() => {
+    const names = Array.from({ length: 20 }, (_, i) => "Player " + (i + 1));
+    applyImport({ rows: names.map((name) => ({ name, resp: "going" })) }, true);
+    render();
+  });
+  await tap(page, "[data-a=toSetup]");
+  await expect(page.locator(".team")).toHaveCount(2);
+  await expect(page.locator('[aria-label="Full reshuffle at breaks"]')).toHaveAttribute("aria-pressed", "false");
+
+  await page.evaluate(() => {
+    const names = ["Ada", "Bea", "Cleo", "Dee", "Eve", "Fay"];
+    applyImport({ rows: names.map((name) => ({ name, resp: "going" })) }, true);
+    S.params.onField = 3;
+    S.params.k = 4;
+    S.params.interval = 5;
+    S.stratPicked = true;
+    S.teams = [];
+    S.started = false;
+    S.view = "squad";
+    render();
+  });
+  await tap(page, "[data-a=toSetup]");
+  await expect(page.locator(".team")).toHaveCount(1);
+  await lockTeams(page);
+  await tap(page, "[data-a=kickoff]");
+  const bias = await page.evaluate(() => {
+    const t = S.T[S.teams[0].id];
+    const field = Object.keys(t.ps).filter((i) => t.ps[i].st === "field");
+    const bench = Object.keys(t.ps).filter((i) => t.ps[i].st === "bench");
+    t.ps[field[0]].on = 10 * 60 * 1000;
+    t.ps[bench[0]].ent = 10 * 60 * 1000;
+    t.ps[bench[1]].on = 10 * 60 * 1000;
+    const fair = breakPairs(t)
+      .filter((p) => p.on && p.off)
+      .map((p) => nm(p.on));
+    S.params.breakReshuffle = true;
+    const full = breakPairs(t)
+      .filter((p) => p.on && p.off)
+      .map((p) => nm(p.on));
+    S.params.breakReshuffle = false;
+    return { fair, full, behind: nm(bench[0]), ahead: nm(bench[1]) };
+  });
+  expect(bias.fair).toContain(bias.behind);
+  expect(bias.fair).not.toContain(bias.ahead);
+  expect(bias.full.length).toBeGreaterThan(bias.fair.length);
+  await page.evaluate(() => {
+    A.halftime();
+    save();
+    render();
+  });
+  await expect(page.locator(".call-t")).toHaveText("Half-time changes");
+  const comingOn = await page.locator(".pair .pi").allTextContents();
+  expect(comingOn).toContain(bias.behind);
+  expect(comingOn).not.toContain(bias.ahead);
+});
+
 test("locking the teams asks for confirmation", async ({ page }) => {
   await importSquad(page);
   await tap(page, "[data-a=toSetup]");
   await tap(page, "[data-a=startDay]");
   await expect(page.getByRole("heading", { name: "Lock teams and start?" })).toBeVisible();
-  await expect(page.getByText("16 minute games, split into two halves of 8 minutes. 3 games per team.")).toBeVisible();
+  await expect(page.getByText("30 minute games, split into two halves of 15 minutes. 1 game per team.")).toBeVisible();
   const plan = await page.evaluate(() => stratLabel(S.params.k, S.params.interval));
   await expect(page.getByText(`Same swap plan for every team: ${plan}.`)).toBeVisible();
   await tap(page, "[data-a=closeModal]");
@@ -86,7 +166,7 @@ test("locking the teams asks for confirmation", async ({ page }) => {
     S.params.halves = 1;
   });
   await tap(page, "[data-a=startDay]");
-  await expect(page.getByText("16 minute games, played straight through. 3 games per team.")).toBeVisible();
+  await expect(page.getByText("30 minute games, played straight through. 1 game per team.")).toBeVisible();
   await tap(page, "[data-a=closeModal]");
   await page.evaluate(() => {
     S.params.halves = 2;
@@ -103,12 +183,24 @@ test("runs a game: planned change, injury cover, summary", async ({ page }) => {
   await tap(page, "[data-a=toSetup]");
   await expect(page.locator("tr.sel")).toHaveCount(1);
   await lockTeams(page);
+  await page.evaluate(() => {
+    let best = 0;
+    S.teams.forEach((tm, i) => {
+      if (tm.pids.length > S.teams[best].pids.length) best = i;
+    });
+    S.active = best;
+    render();
+  });
   await expect(page.locator(".chips .chip.field, .chips .chip.off")).toHaveCount(9);
   await tap(page, "[data-a=kickoff]");
 
-  // The recommended plan for 13 players is 4 every 5 minutes
-  await page.clock.runFor(5 * MIN + 5000);
-  await expect(page.locator(".call-t")).toHaveText("Swap 4 now");
+  const plan = await page.evaluate(() => {
+    const t = S.T[S.teams[S.active].id];
+    return { k: t.k, iv: t.interval };
+  });
+  expect(plan.iv).toBeGreaterThan(0);
+  await page.clock.runFor(plan.iv * MIN + 5000);
+  await expect(page.locator(".call-t")).toHaveText(`Swap ${plan.k} now`);
   expect(await page.locator(".call-k span").allTextContents()).toEqual(["Coming on", "", "Coming off"]);
   const readsOnForOff = await page.locator(".pair").first().evaluate((el) => {
     const on = el.querySelector(".pi");
@@ -291,19 +383,22 @@ test.describe("team builder", () => {
 
   test("drag a player onto another team moves them", async ({ page }) => {
     const name = await chip(page, 0).textContent();
+    const before = await page.evaluate(() => S.teams.map((t) => t.pids.length));
     await drag(page, chip(page, 0), page.locator('.team[data-ti="1"] .tstats'));
     expect(await teamOf(page, name)).toBe(1);
-    await expect(page.locator('.team[data-ti="0"] .tchip')).toHaveCount(13);
-    await expect(page.locator('.team[data-ti="1"] .tchip')).toHaveCount(15);
+    const after = await page.evaluate(() => S.teams.map((t) => t.pids.length));
+    expect(after[0]).toBe(before[0] - 1);
+    expect(after[1]).toBe(before[1] + 1);
   });
 
   test("drop on a player in the other team swaps them, undo restores", async ({ page }) => {
     const a = await chip(page, 0, 2).textContent();
     const b = await chip(page, 1, 1).textContent();
+    const before = await page.evaluate(() => S.teams.map((t) => t.pids.length));
     await drag(page, chip(page, 0, 2), chip(page, 1, 1));
     expect(await teamOf(page, a)).toBe(1);
     expect(await teamOf(page, b)).toBe(0);
-    await expect(page.locator('.team[data-ti="0"] .tchip')).toHaveCount(14);
+    expect(await page.evaluate(() => S.teams.map((t) => t.pids.length))).toEqual(before);
     await tap(page, "[data-a=teamUndo]");
     expect(await teamOf(page, a)).toBe(0);
     expect(await teamOf(page, b)).toBe(1);
@@ -373,11 +468,12 @@ test.describe("team builder", () => {
   test("undoing a change in the number of teams keeps every player once", async ({ page }) => {
     const placed = () => page.evaluate(() => S.teams.flatMap((t) => t.pids).sort());
     const before = await placed();
+    const n = await page.locator(".team").count();
     await tap(page, '[data-a=param][data-k=teams][data-s="1"]');
-    await expect(page.locator(".team")).toHaveCount(3);
+    await expect(page.locator(".team")).toHaveCount(n + 1);
     await tap(page, "[data-a=teamUndo]");
-    await expect(page.locator(".team")).toHaveCount(2);
-    expect(await page.evaluate(() => S.params.teams)).toBe(2);
+    await expect(page.locator(".team")).toHaveCount(n);
+    expect(await page.evaluate(() => S.params.teams)).toBe(n);
     expect(await placed()).toEqual(before);
   });
 });
@@ -678,7 +774,7 @@ test("squad file round-trips teams, marks and settings onto a fresh phone", asyn
   fs.writeFileSync(file, raw);
   expect(roster.kind).toBe("fair-time-roster");
   expect(roster.eventName).toBe("U12 home");
-  expect(roster.params.gameMins).toBe(17);
+  expect(roster.params.gameMins).toBe(31);
   expect(roster.teams.map((t) => t.name)).toContain("Colts");
   expect(roster.players.find((p) => p.name === who).resp).toBe("maybe");
   const fileTeam = roster.teams.find((t) => t.players.includes(who)).name;
@@ -703,7 +799,7 @@ test("squad file round-trips teams, marks and settings onto a fresh phone", asyn
   expect(dialogs).toBe(0);
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem("wimborne-fairtime-v1")));
   expect(state.eventName).toBe("U12 home");
-  expect(state.params.gameMins).toBe(17);
+  expect(state.params.gameMins).toBe(31);
   expect(state.started).toBe(false);
   expect(state.view).toBe("setup");
   const imported = Object.values(state.players).find((p) => p.name === who);

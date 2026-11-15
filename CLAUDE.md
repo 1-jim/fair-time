@@ -31,7 +31,8 @@ Engine (pure-ish, reused by the simulator):
 - Each team in `S.T[teamId]` has player states `ps[pid]` with `st` (`field|bench|injured|concussed|absent|late|lent`), `on` (ms played), `ent` (fair-share entitlement ms), per-game `gOn`.
 - `settle(t)` advances time: every available player earns `dt * playing / available` of entitlement. Injured, late or absent players earn nothing, so a late arrival is never "owed" the time before they arrived.
 - `lists(t)` ranks field (most ahead first) and bench (most behind first). Deficits are rounded to 5 s buckets (`dd`) to stop ties flickering.
-- `planPairs` = in-play swaps (only applied if beneficial), `breakPairs` = full reshuffle at half-time or between games, `fillPairs` = cover for missing players.
+- `planPairs` = in-play swaps (only applied if beneficial), `breakPairs` = half-time and between-games suggestions, `fillPairs` = cover for missing players. With full reshuffle off (the default), `fairBreaks` keeps the swaps that share time more fairly, up to the plan's number. With it on, the whole pitch is picked again from whoever is furthest behind.
+- A new session is one 30-minute game in two halves of 15 minutes, with the full reshuffle off. `teamsForSquad` adds a team for every 12 available players, while each team still has someone to come on. `prepareSetup` applies that when the teams are first built.
 - Clock is wall-clock based (`acc` + `Date.now() - res`), so locking the phone or reloading never loses time. Half-time and full-time never stop the clock automatically; the coach taps on the whistle.
 - `simulate(n, k, iv)` runs a whole match day through the same engine to score each plan; `strategies(n)` ranks them (fairness gap, stoppages, longest rest).
 - Suspected concussion locks a player out for the day by design. Do not add a quick "return" path for it.
