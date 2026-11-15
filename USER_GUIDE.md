@@ -184,11 +184,11 @@ Tap any player's card for options.
 
 | Situation | What to tap | What happens |
 | --- | --- | --- |
-| Injured | **Injured** | They come off and the bench player furthest behind comes on straight away. |
+| Injured | **Injured** | If they are on the pitch, you confirm the replacement first. The bench player furthest behind is suggested. Tap any other benched player to choose them instead, then confirm. |
 | Fit again | **Fit to play again** | They go to the bench and are prioritised, as they're now behind. |
-| Head knock | **Suspected concussion** | They're out for the rest of the day and can't be put back by accident. |
+| Head knock | **Suspected concussion** | Same replacement step if they are on the pitch. They're out for the rest of the day and can't be put back by accident. |
 | Arrives late | **Arrived** | They join the bench and start earning fair time from that moment. |
-| Goes home early | **Gone home** | Removed from the rotation. |
+| Goes home early | **Gone home** | Same replacement step if they are on the pitch. Then they are out of the rotation. |
 | Opposition short | **Lend to the opposition** | Their time still counts as playing. |
 | Manual swap | Pick a name under **Swap off for** or **Bring on for** | Swaps just those two. |
 | Move between teams | **Move to** (before kick-off or at full-time) | Moves them with their minutes. |

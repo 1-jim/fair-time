@@ -124,10 +124,12 @@ test("runs a game: planned change, injury cover, summary", async ({ page }) => {
   await tap(page, "[data-a=callDone]");
   await expect(page.locator(".call")).toHaveCount(0);
 
-  // Injure a pitch player: the bench cover comes on automatically
+  // Injure a pitch player: confirm the suggested replacement, and the pitch stays full
   const injured = await page.locator(".chips .chip.field .nm, .chips .chip.off .nm").first().textContent();
   await tap(page, ".chips .chip.field, .chips .chip.off");
   await tap(page, "[data-s=injured]");
+  await expect(page.locator("[data-a=coverPick]").first()).toContainText("Suggested");
+  await tap(page, "[data-a=coverOk]");
   await expect(page.locator("#toast")).toContainText(`on for ${injured}`);
   await expect(page.locator(".chips .chip.field, .chips .chip.off")).toHaveCount(9);
 
@@ -192,9 +194,40 @@ test("concussion cannot be cleared by the normal return option", async ({ page }
   await tap(page, "[data-a=kickoff]");
   await tap(page, ".chips .chip.field, .chips .chip.off");
   await tap(page, "[data-s=concussed]");
+  await expect(page.getByRole("heading", { name: /suspected concussion/ })).toBeVisible();
+  await tap(page, "[data-a=coverOk]");
   await tap(page, ".chip.out:has-text('Concussion')");
   await expect(page.getByText("Fit to play again")).toHaveCount(0);
   await expect(page.getByText("Clear: entered by mistake")).toBeVisible();
+});
+
+test("injury cover can be cancelled or replaced with another benched player", async ({ page }) => {
+  await importSquad(page);
+  await tap(page, "[data-a=toSetup]");
+  await lockTeams(page);
+  await tap(page, "[data-a=kickoff]");
+  const pid = await page.locator(".chips .chip.field, .chips .chip.off").first().getAttribute("data-p");
+  const injured = await page.evaluate((id) => nm(id), pid);
+  await tap(page, ".chips .chip.field, .chips .chip.off");
+  await tap(page, "[data-s=injured]");
+  await expect(page.getByRole("heading", { name: `${injured} is injured` })).toBeVisible();
+  await tap(page, "[data-a=closeModal]");
+  await expect(page.locator("[data-s=injured]")).toBeVisible();
+  expect(await page.evaluate((id) => S.T[S.teams[S.active].id].ps[id].st, pid)).toBe("field");
+
+  await tap(page, "[data-s=injured]");
+  const suggested = await page.locator("[data-a=coverPick] .nm").first().innerText();
+  const other = await page.locator("[data-a=coverPick] .nm").nth(1).innerText();
+  await page.locator("[data-a=coverPick]").nth(1).evaluate((el) => el.click());
+  await expect(page.locator("[data-a=coverPick]").nth(1)).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("[data-a=coverOk]")).toContainText(other);
+  await tap(page, "[data-a=coverOk]");
+  const after = await page.evaluate(({ suggested, other, injured }) => {
+    const t = S.T[S.teams[S.active].id];
+    const id = (name) => Object.keys(t.ps).find((i) => nm(i) === name);
+    return { sug: t.ps[id(suggested)].st, oth: t.ps[id(other)].st, inj: t.ps[id(injured)].st, field: lists(t).F.length };
+  }, { suggested, other, injured });
+  expect(after).toEqual({ sug: "bench", oth: "field", inj: "injured", field: 9 });
 });
 
 test("match controls are tappable where they are drawn", async ({ page }) => {
@@ -1210,6 +1243,59 @@ test("training only shares fair time and substitutes both sides together", async
   expect(after.onSide).toBe(moved.side);
   expect(after.offSt).toBe("bench");
   expect(after.pitch).toEqual([3, 3]);
+});
+
+test("a training injury replacement takes the outgoing player's side", async ({ page }) => {
+  await page.evaluate(() => {
+    applyImport(
+      {
+        rows: ["Ada", "Bea", "Cleo", "Dee", "Eve", "Fay", "Gia", "Hana"].map((name) => ({ name, resp: "going" })),
+      },
+      true,
+    );
+    S.params.training = true;
+    S.params.teams = 2;
+    S.params.onField = 3;
+    S.params.games = 1;
+    S.params.halves = 1;
+    S.params.gameMins = 10;
+    S.params.k = 1;
+    S.params.interval = 5;
+    S.stratPicked = true;
+    splitTeams("shuffle");
+    S.view = "setup";
+    render();
+  });
+  await tap(page, "[data-a=startDay]");
+  await tap(page, "[data-a=startConfirm]");
+  await tap(page, "[data-a=kickoff]");
+  const offName = await page.evaluate(() => {
+    const t = S.T[S.teams[0].id];
+    const id = Object.keys(t.ps).find((i) => t.ps[i].st === "field" && t.ps[i].side === S.teams[0].id);
+    return nm(id);
+  });
+  await tap(page, `.chip[data-a=player]:has-text("${offName}")`);
+  await tap(page, "[data-s=absent]");
+  await expect(page.getByRole("heading", { name: `${offName} has gone home` })).toBeVisible();
+  await expect(page.getByText("They take the place on Team A.")).toBeVisible();
+  const other = await page.locator("[data-a=coverPick] .nm").nth(1).innerText();
+  await page.locator("[data-a=coverPick]").nth(1).evaluate((el) => el.click());
+  await tap(page, "[data-a=coverOk]");
+  const got = await page.evaluate(({ offName, other }) => {
+    const t = S.T[S.teams[0].id];
+    const id = (name) => Object.keys(t.ps).find((i) => nm(i) === name);
+    return {
+      side: t.ps[id(other)].side,
+      on: t.ps[id(other)].st,
+      off: t.ps[id(offName)].st,
+      pitch: S.teams.map((tm) => Object.keys(t.ps).filter((i) => t.ps[i].st === "field" && t.ps[i].side === tm.id).length),
+      team: S.teams[0].id,
+    };
+  }, { offName, other });
+  expect(got.side).toBe(got.team);
+  expect(got.on).toBe("field");
+  expect(got.off).toBe("absent");
+  expect(got.pitch).toEqual([3, 3]);
 });
 
 test("training balance keeps 30 players level with contest 3, defence 2, attack 1", async ({ page }) => {
